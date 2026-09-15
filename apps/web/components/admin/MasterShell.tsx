@@ -50,7 +50,7 @@ function ShellInner({ children }: { children: ReactNode }) {
         {me.onboarded && !me.has_password && pathname === "/app" && (
           <Link href="/app/profile#password" className="mt-3 flex items-center justify-between gap-3 rounded-md bg-surface-soft px-4 py-3 text-sm text-body">
             <span>
-              <b className="text-ink">Задайте пароль</b> — чтобы входить без звонка
+              <b className="text-ink">Задайте пароль</b> — он нужен для входа
             </span>
             <ChevronRight className="h-5 w-5 shrink-0 text-muted-soft" aria-hidden />
           </Link>

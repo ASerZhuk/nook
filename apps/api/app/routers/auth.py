@@ -4,7 +4,7 @@ import logging
 import secrets
 import time
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -12,8 +12,8 @@ from starlette.concurrency import run_in_threadpool
 from app.config import settings
 from app.deps import SessionDep
 from app.models import AuthCode, Master, utcnow
-from app.schemas import CodeRequested, PasswordLoginIn, PhoneIn, PhoneStatus, VerifyIn, VerifyOut
-from app.security import SESSION_COOKIE, SESSION_TTL, create_session, hash_code, verify_password
+from app.schemas import CodeRequested, PasswordLoginIn, PhoneIn, PhoneStatus, RegisterIn, VerifyIn, VerifyOut
+from app.security import SESSION_COOKIE, SESSION_TTL, create_session, hash_code, hash_password, verify_password
 from app.services.booking import is_valid_phone, normalize_phone
 from app.services.callpassword import CallPasswordError, start_call
 
@@ -96,10 +96,35 @@ _failed_logins: dict[str, list[float]] = {}  # один воркер uvicorn —
 
 @router.post("/start", response_model=PhoneStatus)
 async def start(data: PhoneIn, session: SessionDep) -> PhoneStatus:
-    """Есть ли у номера пароль: да — спрашиваем пароль, нет — звоним."""
+    """Есть ли аккаунт с этим номером: да — спрашиваем пароль, нет — предлагаем регистрацию."""
     phone = valid_phone(data.phone)
     master = await session.scalar(select(Master).where(Master.phone == phone))
-    return PhoneStatus(has_password=bool(master and master.has_password))
+    return PhoneStatus(exists=master is not None, has_password=bool(master and master.has_password))
+
+
+REGISTER_WINDOW_SECONDS = 60 * 60
+REGISTER_MAX_PER_IP = 10
+_registrations: dict[str, list[float]] = {}
+
+
+@router.post("/register", response_model=VerifyOut, status_code=201)
+async def register(data: RegisterIn, request: Request, response: Response, session: SessionDep) -> VerifyOut:
+    """Регистрация по номеру и паролю без подтверждения номера (тестовый режим, пока нет доставки кодов)."""
+    phone = valid_phone(data.phone)
+    ip = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    recent = [t for t in _registrations.get(ip, []) if now - t < REGISTER_WINDOW_SECONDS]
+    if len(recent) >= REGISTER_MAX_PER_IP:
+        raise HTTPException(429, "Слишком много регистраций с этого устройства. Попробуйте позже.")
+    if await session.scalar(select(Master.id).where(Master.phone == phone)):
+        raise HTTPException(409, "Аккаунт с этим номером уже есть — войдите по паролю")
+
+    master = Master(phone=phone, slug=await unique_slug(session), password_hash=await run_in_threadpool(hash_password, data.password))
+    session.add(master)
+    await session.commit()
+    _registrations[ip] = [*recent, now]
+    set_session(response, master)
+    return VerifyOut(onboarded=False, has_password=True)
 
 
 @router.post("/login", response_model=VerifyOut)
@@ -108,7 +133,7 @@ async def login(data: PasswordLoginIn, response: Response, session: SessionDep) 
     now = time.monotonic()
     fails = [t for t in _failed_logins.get(phone, []) if now - t < LOGIN_WINDOW_SECONDS]
     if len(fails) >= LOGIN_MAX_FAILS:
-        raise HTTPException(429, "Слишком много попыток. Войдите по звонку или попробуйте позже.")
+        raise HTTPException(429, "Слишком много попыток. Попробуйте позже.")
 
     master = await session.scalar(select(Master).where(Master.phone == phone))
     if not master or not await run_in_threadpool(verify_password, data.password, master.password_hash):

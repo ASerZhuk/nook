@@ -29,7 +29,12 @@ class VerifyOut(BaseModel):
 
 
 class PhoneStatus(BaseModel):
+    exists: bool
     has_password: bool
+
+
+class RegisterIn(PhoneIn):
+    password: str = Field(min_length=6, max_length=128)
 
 
 class PasswordLoginIn(PhoneIn):

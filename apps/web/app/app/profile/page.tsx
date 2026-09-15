@@ -240,7 +240,7 @@ function PasswordSection({ hasPassword, phone, onSaved }: { hasPassword: boolean
     >
       <h2 className="font-semibold">{hasPassword ? "Сменить пароль" : "Пароль для входа"}</h2>
       <p className="text-sm text-muted">
-        {hasPassword ? "Вход по паролю включён. Если забудете пароль — войдёте по звонку." : "Задайте пароль, чтобы входить без звонка."}
+        {hasPassword ? "Пароль для входа в nook. Минимум 6 символов." : "Задайте пароль для входа."}
       </p>
       <input className="sr-only" type="text" name="username" autoComplete="username" value={phone} readOnly tabIndex={-1} aria-hidden />
       <PasswordInput className="input-sm" value={password} onChange={setPassword} autoComplete="new-password" />
