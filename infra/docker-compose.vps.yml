@@ -1,0 +1,31 @@
+# Тестовый стенд на VPS рядом с другими сервисами.
+# Образы собирает GitHub Actions (ghcr.io); nginx на хосте проксирует домен на 127.0.0.1:3100 и /api на 127.0.0.1:8100.
+#   docker compose -f docker-compose.vps.yml pull && docker compose -f docker-compose.vps.yml up -d
+services:
+  api:
+    image: ghcr.io/aserzhuk/nook-api:latest
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/app.db
+      VAPID_FILE: /data/vapid.json
+      MEDIA_DIR: /data/media
+    volumes:
+      - nook_data:/data # база, аватарки, ключи push — переживают пересоздание контейнера
+    ports:
+      - "127.0.0.1:8100:8000"
+    mem_limit: 300m
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/aserzhuk/nook-web:latest
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3100:3000"
+    mem_limit: 350m
+    restart: unless-stopped
+
+volumes:
+  nook_data:
