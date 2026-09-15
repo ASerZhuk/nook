@@ -1,0 +1,34 @@
+# dependencies / builds
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.vercel
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# secrets & local data — never commit
+.env
+.env.*
+!.env.example
+apps/api/vapid.json
+apps/api/media/
+*.db
+*.db-*
+*.db.bak-*
+
+# logs / os / editors
+*.log
+logs/
+tmp/
+.DS_Store
+.idea/
+.vscode/

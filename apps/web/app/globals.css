@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/* Токены из DESIGN.md */
+@theme {
+  --font-sans: var(--font-inter), -apple-system, system-ui, Roboto, "Helvetica Neue", sans-serif;
+
+  --color-primary: #ff385c;
+  --color-primary-active: #e00b41;
+  --color-primary-disabled: #ffd1da;
+  --color-error: #c13515;
+  --color-ink: #222222;
+  --color-body: #3f3f3f;
+  --color-muted: #6a6a6a;
+  --color-muted-soft: #929292;
+  --color-hairline: #dddddd;
+  --color-hairline-soft: #ebebeb;
+  --color-border-strong: #c1c1c1;
+  --color-surface-soft: #f7f7f7;
+  --color-surface-strong: #f2f2f2;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 32px;
+
+  --shadow-float: 0 0 0 1px rgb(0 0 0 / 0.02), 0 2px 6px 0 rgb(0 0 0 / 0.04), 0 4px 8px 0 rgb(0 0 0 / 0.1);
+}
+
+@layer base {
+  body {
+    @apply bg-white text-ink antialiased;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1280px] px-5 md:px-10;
+  }
+  .btn-primary {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-sm bg-primary px-6 text-base font-medium text-white transition-colors hover:bg-primary-active active:bg-primary-active disabled:cursor-not-allowed disabled:bg-primary-disabled;
+  }
+  .btn-secondary {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-sm border border-ink bg-white px-6 text-base font-medium text-ink transition-colors hover:bg-surface-soft disabled:cursor-not-allowed disabled:border-border-strong disabled:text-muted-soft;
+  }
+  .btn-ghost {
+    @apply inline-flex h-10 items-center justify-center rounded-sm px-3 text-sm font-medium underline-offset-4 hover:underline;
+  }
+  .btn-pill {
+    @apply inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-white transition-colors hover:bg-primary-active;
+  }
+  .icon-btn {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-full border border-hairline bg-white text-ink transition-colors hover:border-ink;
+  }
+  .input {
+    @apply h-14 w-full rounded-sm border border-hairline bg-white px-3 text-base text-ink outline-none transition-shadow placeholder:text-muted-soft focus:border-primary focus:shadow-[inset_0_0_0_1px_var(--color-primary)];
+  }
+  .input-sm {
+    @apply h-11 w-full rounded-sm border border-hairline bg-white px-3 text-base text-ink md:text-[15px] outline-none transition-shadow placeholder:text-muted-soft focus:border-primary focus:shadow-[inset_0_0_0_1px_var(--color-primary)];
+  }
+  .textarea {
+    @apply min-h-24 w-full rounded-sm border border-hairline bg-white p-3 text-base text-ink md:text-[15px] outline-none transition-shadow placeholder:text-muted-soft focus:border-primary focus:shadow-[inset_0_0_0_1px_var(--color-primary)];
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-muted;
+  }
+  .card {
+    @apply rounded-md border border-hairline bg-white p-6;
+  }
+  .chip {
+    @apply inline-flex h-10 items-center justify-center rounded-full border border-hairline bg-white px-4 text-sm font-medium text-ink transition-colors hover:border-ink;
+  }
+  .chip-active {
+    @apply border-primary bg-primary text-white;
+  }
+}

@@ -1,0 +1,25 @@
+# ai_memory
+Продукт nook: онлайн-запись для частных мастеров, «как блокнот», не CRM. Только мобильная версия (PWA). Спека dev_specification.md устарела по части сайтов мастеров; дизайн — DESIGN.md (токены в apps/web/app/globals.css).
+
+Stack: FastAPI + SQLAlchemy async + SQLite WAL + Alembic + pywebpush + smsint Call Password (apps/api); Next.js 15 + Tailwind v4 (apps/web).
+
+Flow: мастер /login (телефон + код из звонка: последние 4 цифры номера, smsint /callpassword/send → result.code) → /app/onboarding (имя, услуги, расписание, slug) → ссылка /{slug}. Клиент записывается → /c/{token} (PWA клиента) → push о переносе/отмене. Клиент может отменить сам.
+
+Key files: api/app/routers/{auth,master,public,client,system}.py, services/{booking,notify,callpassword,ics}.py, deps.py; web/app/{app,[slug],c/[token],login}, components/admin/{MasterShell,TabBar,PushSetup,BookingModal,MonthCalendar,ui}.tsx, lib/{api,push,format}.ts, public/sw.js.
+
+Decisions:
+- Telegram не используем (ненадёжен в СНГ). Уведомления только web push, мастеру и клиенту.
+- iOS: у PWA своё хранилище → токен клиента в URL /c/{token}, манифест на токен (start_url); в БД хранится sha256 токена.
+- Время = локальное время мастера (settings.timezone); .ics в UTC.
+- Ручная запись мастером: ссылка на одну запись /r/{sign_id('booking', id)} (не хранится в БД) → мастер шлёт SMS со своего номера (sms:?&body=) или «Поделиться». Если номер уже есть в nook и клиент записывался к этому мастеру — запись привязывается к приложению + push. /r → «Сохранить в nook» (claim). Ссылку на всё приложение клиента мастеру не даём (записи к другим мастерам).
+- Быстрая запись: текст мастера → POST /api/master/quick-parse → LLM (vsellm, OpenAI-совместимый, VSELLM_* в apps/api/.env, response_format json_object) → черновик. Сервер валидирует: услуга только из списка мастера, телефон по имени из клиентов, прошедшее/занятое время → warnings. В базу пишет только после «Записать» (обычный POST /master/bookings).
+- Загрузки: аватар мастера → Pillow (EXIF-поворот, квадрат 512, WebP) → settings.media_dir (docker: /data/media), раздача StaticFiles на /api/media (идёт через прокси Next/Caddy). Компонент components/Avatar.tsx (фото или буква).
+- Расписание: masters.schedule_type = weekly (working_hours/working_slots по дням недели) | dates (date_hours/date_slots на конкретные даты). Тип выбирается один раз при первом сохранении, потом API отвечает 409 на другой тип. DELETE /schedule стирает часы/окошки обоих типов и сбрасывает тип (записи клиентов и выходные остаются) — единственный способ сменить тип. Страница расписания — просмотр, редактирование в шторках. Выходные/перерывы — отдельный PUT /schedule/time-off для обоих типов. free_slots выбирает источник по типу; фронт — lib/schedule.ts dayPlan().
+- Никаких системных confirm()/alert(): useDialogs() из components/DialogProvider.tsx (подключён в root layout) — `await confirm({ title, message, confirmText, danger })` и `toast(message, kind)`.
+- Цвет выбранного состояния (чипы, дни календаря, сегменты, чекбоксы accent-*, шаги, фокус полей) — только primary, не ink.
+- График по дням: PUT /schedule/days — у каждого дня свой mode/время/окошки (атомарно, save_days); PUT /schedule/dates — одинаково для всех. В шторке переключатель «Одинаковое время для всех дней».
+- Запись мастером (MasterBookingIn): телефон необязателен → client_phone "", в clients не добавляется, SMS/звонок скрыты, мастеру предупреждение. Клиент по ссылке — телефон обязателен. Быстрая запись: одна активная услуга подставляется сама; LLM-запрос с одним повтором на 429/5xx/сеть.
+- Идеи на будущее (каналы: боты Telegram/VK/MAX/Instagram поверх общего бэкенда) — FICHY.md, пока не реализовано.
+- Иконки только lucide-react (без символов ←✕› и самописных svg). Вход мастера: пароль, звонок — при первом входе и «забыли пароль».
+- Вход: smsint Call Password, токен SMSINT_API_TOKEN в apps/api/.env (не в коде). Без токена — dev: звонка нет, код в ответе API (dev_code). Лимит smsint по умолчанию — 3 звонка за 10 минут на номер. VAPID-ключи генерируются в vapid.json.
+- Старая dev-база сохранена как apps/api/app.db.bak-v1 (схема v1 с сайтами мастеров).
