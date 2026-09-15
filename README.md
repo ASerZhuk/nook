@@ -34,6 +34,12 @@ npm install && npm run dev   # http://localhost:3000
 - Токен smsint — `SMSINT_API_TOKEN` в `apps/api/.env`. Без него звонка нет, код входа показывается на экране. Демо-мастер: `+7 999 000-11-22`, ссылка `/anna`.
 - Push и установка PWA на телефоне работают только по HTTPS (или на `localhost`).
 
+## Тестовый стенд: https://nook.aszhukov.site
+- Образы собирает GitHub Actions при пуше в `main` (`.github/workflows/docker.yml`) → `ghcr.io/aserzhuk/nook-web`, `nook-api`.
+- На VPS: `/opt/nook` (`docker-compose.yml` = `infra/docker-compose.vps.yml`, `.env` с секретами), данные в томе `nook_nook_data`.
+- nginx хоста: `/etc/nginx/sites-available/nook` (шаблон `infra/nginx.nook.conf.example`), сертификат certbot.
+- Обновить после сборки: `cd /opt/nook && docker compose pull && docker compose up -d`.
+
 ## Продакшн
 ```bash
 cd infra && cp .env.example .env   # заполнить
