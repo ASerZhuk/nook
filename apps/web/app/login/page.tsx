@@ -14,6 +14,13 @@ export default function LoginPage() {
   const [phone, setPhone] = useState("+7");
   const [password, setPassword] = useState("");
   const [forgot, setForgot] = useState(false);
+  // «У меня уже есть аккаунт» → /login?mode=password: после номера сразу пароль, без звонка
+  const [passwordMode, setPasswordMode] = useState(false);
+  const [noPassword, setNoPassword] = useState(false);
+
+  useEffect(() => {
+    setPasswordMode(new URLSearchParams(window.location.search).get("mode") === "password");
+  }, []);
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
   const [retryIn, setRetryIn] = useState(0);
@@ -54,7 +61,8 @@ export default function LoginPage() {
     setError("");
     try {
       const { has_password } = await api<{ has_password: boolean }>("/auth/start", { method: "POST", body: JSON.stringify({ phone }) });
-      if (has_password) {
+      if (has_password || passwordMode) {
+        setNoPassword(!has_password);
         setStep("password");
         setBusy(false);
       } else {
@@ -100,6 +108,7 @@ export default function LoginPage() {
     setStep("phone");
     setPassword("");
     setForgot(false);
+    setNoPassword(false);
     setError("");
   }
 
@@ -118,8 +127,10 @@ export default function LoginPage() {
 
       {step === "phone" && (
         <form onSubmit={submitPhone} className="mt-12 flex flex-1 flex-col">
-          <h1 className="text-[28px] font-bold leading-tight">Вход по номеру телефона</h1>
-          <p className="mt-2 text-base text-muted">Если аккаунта ещё нет — создадим.</p>
+          <h1 className="text-[28px] font-bold leading-tight">{passwordMode ? "Вход в аккаунт" : "Вход по номеру телефона"}</h1>
+          <p className="mt-2 text-base text-muted">
+            {passwordMode ? "Введите номер, на который зарегистрирован аккаунт." : "Если аккаунта ещё нет — создадим."}
+          </p>
           <input
             className="input mt-8 text-xl tracking-wide"
             type="tel"
@@ -132,7 +143,7 @@ export default function LoginPage() {
             autoFocus
             required
           />
-          <div className="mt-5 rounded-md bg-surface-soft p-4 text-[15px] leading-relaxed text-body">
+          <div className={`mt-5 rounded-md bg-surface-soft p-4 text-[15px] leading-relaxed text-body ${passwordMode ? "hidden" : ""}`}>
             <p className="font-semibold text-ink">Первый вход — по звонку</p>
             <p className="mt-1">Отвечать не нужно. Код для входа — <b className="text-ink">последние 4 цифры</b> номера, с которого позвонят. Потом придумаете пароль и будете входить без звонка.</p>
             <p className="mt-2 text-sm text-muted">Например, +7 900 123-<b className="text-ink">45-67</b> → код <b className="text-ink">4567</b></p>
@@ -148,27 +159,43 @@ export default function LoginPage() {
 
       {step === "password" && (
         <form onSubmit={loginWithPassword} className="mt-12 flex flex-1 flex-col">
-          <h1 className="text-[28px] font-bold leading-tight">Введите пароль</h1>
+          <h1 className="text-[28px] font-bold leading-tight">{noPassword ? "Пароль не задан" : "Введите пароль"}</h1>
           {phoneLine}
-          {/* логин для менеджера паролей iOS/Android */}
-          <input className="sr-only" type="text" name="username" autoComplete="username" value={phone} readOnly tabIndex={-1} aria-hidden />
-          <div className="mt-8">
-            <PasswordInput value={password} onChange={setPassword} autoComplete="current-password" autoFocus />
-          </div>
+          {noPassword ? (
+            <div className="mt-8 rounded-md bg-surface-soft p-4 text-[15px] leading-relaxed text-body">
+              Для этого номера ещё нет пароля. Войдите по звонку — после входа сможете придумать пароль и дальше входить без звонка.
+            </div>
+          ) : (
+            <>
+              {/* логин для менеджера паролей iOS/Android */}
+              <input className="sr-only" type="text" name="username" autoComplete="username" value={phone} readOnly tabIndex={-1} aria-hidden />
+              <div className="mt-8">
+                <PasswordInput value={password} onChange={setPassword} autoComplete="current-password" autoFocus />
+              </div>
+            </>
+          )}
           {error && <p className="mt-3 text-sm text-error">{error}</p>}
-          <button
-            type="button"
-            className="btn-ghost -ml-3 mt-3 self-start"
-            disabled={busy}
-            onClick={() => {
-              setForgot(true);
-              requestCode();
-            }}
-          >
-            Забыли пароль? Войти по звонку
-          </button>
+          {!noPassword && (
+            <button
+              type="button"
+              className="btn-ghost -ml-3 mt-3 self-start"
+              disabled={busy}
+              onClick={() => {
+                setForgot(true);
+                requestCode();
+              }}
+            >
+              Забыли пароль? Войти по звонку
+            </button>
+          )}
           <div className="mt-auto pt-8">
-            <button className="btn-primary w-full" disabled={busy || !password}>{busy ? "Входим…" : "Войти"}</button>
+            {noPassword ? (
+              <button type="button" className="btn-primary w-full" disabled={busy} onClick={() => requestCode()}>
+                {busy ? "Звоним…" : "Войти по звонку"}
+              </button>
+            ) : (
+              <button className="btn-primary w-full" disabled={busy || !password}>{busy ? "Входим…" : "Войти"}</button>
+            )}
           </div>
         </form>
       )}

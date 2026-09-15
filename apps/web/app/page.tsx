@@ -27,7 +27,7 @@ export default function Home() {
         </ul>
       </div>
       <Link href="/login" className="btn-primary w-full">Начать бесплатно</Link>
-      <Link href="/login" className="btn-ghost mt-2 w-full">У меня уже есть аккаунт</Link>
+      <Link href="/login?mode=password" className="btn-ghost mt-2 w-full">У меня уже есть аккаунт</Link>
     </main>
   );
 }
