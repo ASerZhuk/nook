@@ -4,6 +4,8 @@ name: Build images
 on:
   push:
     branches: [main]
+    paths-ignore: # правки документации не пересобирают и не перезапускают стенд
+      - "**/*.md"
   workflow_dispatch:
 
 permissions:

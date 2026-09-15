@@ -38,7 +38,9 @@ npm install && npm run dev   # http://localhost:3000
 - Образы собирает GitHub Actions при пуше в `main` (`.github/workflows/docker.yml`) → `ghcr.io/aserzhuk/nook-web`, `nook-api`.
 - На VPS: `/opt/nook` (`docker-compose.yml` = `infra/docker-compose.vps.yml`, `.env` с секретами), данные в томе `nook_nook_data`.
 - nginx хоста: `/etc/nginx/sites-available/nook` (шаблон `infra/nginx.nook.conf.example`), сертификат certbot.
-- Обновить после сборки: `cd /opt/nook && docker compose pull && docker compose up -d`.
+- Автообновление: после сборки задача `deploy` заходит на VPS по ключу из секретов (`VPS_HOST`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS`). На сервере ключ привязан только к `/opt/nook/deploy.sh`: pull → up -d → очистка образов → проверка здоровья.
+- Правки только в `*.md` сборку и деплой не запускают.
+- Вручную (если нужно): `/opt/nook/deploy.sh` или `cd /opt/nook && docker compose pull && docker compose up -d`.
 
 ## Продакшн
 ```bash
