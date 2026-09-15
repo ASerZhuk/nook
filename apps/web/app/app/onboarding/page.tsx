@@ -7,6 +7,7 @@ import { LinkCard } from "@/components/admin/LinkCard";
 import { useMaster } from "@/components/admin/MasterShell";
 import { PushSetup } from "@/components/admin/PushSetup";
 import { MonthCalendar } from "@/components/admin/MonthCalendar";
+import { MODE_OPTIONS, Segmented, SlotGrid } from "@/components/admin/ScheduleControls";
 import { Field, PasswordInput } from "@/components/admin/ui";
 import { api } from "@/lib/api";
 import { formatDuration, formatPrice, localToday, slugify } from "@/lib/format";
@@ -29,6 +30,8 @@ export default function OnboardingPage() {
   const [draft, setDraft] = useState({ name: "", duration_minutes: 60, price: "" });
   const [days, setDays] = useState([true, true, true, true, true, false, false]);
   const [hours, setHours] = useState({ start: "10:00", end: "19:00" });
+  const [timeMode, setTimeMode] = useState<"range" | "slots">("range");
+  const [slots, setSlots] = useState<string[]>([]);
   const [scheduleType, setScheduleType] = useState<"weekly" | "dates">("weekly");
   const [pickedDates, setPickedDates] = useState<string[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(localToday);
@@ -78,16 +81,21 @@ export default function OnboardingPage() {
 
   const saveSchedule = () =>
     run(async () => {
+      const range = timeMode === "range";
       if (scheduleType === "dates") {
         await api("/master/schedule/dates", {
           method: "PUT",
-          body: JSON.stringify({ dates: pickedDates, mode: "range", start_time: hours.start, end_time: hours.end }),
+          body: JSON.stringify(
+            range ? { dates: pickedDates, mode: "range", start_time: hours.start, end_time: hours.end } : { dates: pickedDates, mode: "slots", slots },
+          ),
         });
       } else {
+        const weekdays = days.flatMap((on, weekday) => (on ? [weekday] : []));
         await api("/master/schedule", {
           method: "PUT",
           body: JSON.stringify({
-            working_hours: days.flatMap((on, weekday) => (on ? [{ weekday, start_time: hours.start, end_time: hours.end }] : [])),
+            working_hours: range ? weekdays.map((weekday) => ({ weekday, start_time: hours.start, end_time: hours.end })) : [],
+            working_slots: range ? [] : weekdays.flatMap((weekday) => slots.map((start_time) => ({ weekday, start_time }))),
           }),
         });
       }
@@ -244,16 +252,31 @@ export default function OnboardingPage() {
           </div>
             </>
           )}
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <Field label="С">
-              <input className="input" type="time" value={hours.start} onChange={(e) => setHours({ ...hours, start: e.target.value })} />
-            </Field>
-            <Field label="До">
-              <input className="input" type="time" value={hours.end} onChange={(e) => setHours({ ...hours, end: e.target.value })} />
-            </Field>
-          </div>
+          <span className="label mt-6">Время приёма</span>
+          <Segmented options={MODE_OPTIONS} value={timeMode} onChange={setTimeMode} full />
+          {timeMode === "range" ? (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <Field label="С">
+                <input className="input" type="time" value={hours.start} onChange={(e) => setHours({ ...hours, start: e.target.value })} />
+              </Field>
+              <Field label="До">
+                <input className="input" type="time" value={hours.end} onChange={(e) => setHours({ ...hours, end: e.target.value })} />
+              </Field>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <p className="mb-3 text-sm text-muted">Отметьте время, на которое клиенты смогут записаться.</p>
+              <SlotGrid selected={slots} onChange={setSlots} />
+            </div>
+          )}
+          <p className="mt-3 text-xs text-muted">Одинаково для всех рабочих дней. Разное время по дням можно задать потом в «Расписании».</p>
           <Footer error={error} onBack={() => setStep(1)}>
-            <button type="button" className="btn-primary flex-1" disabled={busy || (scheduleType === "weekly" ? !days.some(Boolean) : !pickedDates.length) || hours.start >= hours.end} onClick={saveSchedule}>
+            <button
+              type="button"
+              className="btn-primary flex-1"
+              disabled={busy || (scheduleType === "weekly" ? !days.some(Boolean) : !pickedDates.length) || (timeMode === "range" ? hours.start >= hours.end : !slots.length)}
+              onClick={saveSchedule}
+            >
               Далее
             </button>
           </Footer>
