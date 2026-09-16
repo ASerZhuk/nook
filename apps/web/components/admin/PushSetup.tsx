@@ -4,7 +4,7 @@ import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { InstallAppSheet } from "@/components/InstallAppSheet";
 import { api } from "@/lib/api";
-import { canPromptInstall, existingSubscription, isIOS, isStandalone, pushSupported, subscribePush } from "@/lib/push";
+import { existingSubscription, isIOS, isStandalone, pushSupported, subscribePush } from "@/lib/push";
 
 type Status = "loading" | "needs-install" | "unsupported" | "default" | "denied" | "on";
 
@@ -13,7 +13,7 @@ type Props = { title: string; description: string; subscribePath: string; testPa
 /** Установка PWA + включение web push. Общий для мастера и клиента. */
 export function PushSetup({ title, description, subscribePath, testPath, clientToken }: Props) {
   const [status, setStatus] = useState<Status>("loading");
-  const [installable, setInstallable] = useState(false);
+  const [installed, setInstalled] = useState(true);
   const [showInstall, setShowInstall] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -21,9 +21,7 @@ export function PushSetup({ title, description, subscribePath, testPath, clientT
 
   useEffect(() => {
     const standalone = isStandalone();
-    const refreshInstallable = () => setInstallable(!standalone && canPromptInstall());
-    refreshInstallable();
-    window.addEventListener("nook:installable", refreshInstallable);
+    setInstalled(standalone);
 
     let cancelled = false;
     (async () => {
@@ -43,7 +41,6 @@ export function PushSetup({ title, description, subscribePath, testPath, clientT
 
     return () => {
       cancelled = true;
-      window.removeEventListener("nook:installable", refreshInstallable);
     };
   }, [subscribePath, clientToken]);
 
@@ -110,14 +107,14 @@ export function PushSetup({ title, description, subscribePath, testPath, clientT
           <button className="btn-primary mt-3 w-full" onClick={() => setShowInstall(true)}>Установить приложение</button>
         </>
       )}
-      {installable && status !== "needs-install" && (
+      {!installed && status !== "needs-install" && (
         <button className="btn-secondary mt-3 w-full" onClick={() => setShowInstall(true)}>Установить приложение</button>
       )}
       {showInstall && (
         <InstallAppSheet
           onClose={() => {
             setShowInstall(false);
-            setInstallable(!isStandalone() && canPromptInstall());
+            setInstalled(isStandalone());
           }}
         />
       )}
