@@ -246,7 +246,8 @@ export default function BookingsPage() {
             setQuick(false);
             selectDate(created.start_at.slice(0, 10));
             reload();
-            report("Клиент записан", "created", created);
+            // время мог подобрать сервер («на утро») — называем его в уведомлении
+            report(`Записали на ${formatDay(created.start_at, { day: "numeric", month: "long" })}, ${hhmm(created.start_at)}`, "created", created);
           }}
         />
       )}

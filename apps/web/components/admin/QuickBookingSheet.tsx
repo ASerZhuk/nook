@@ -69,8 +69,7 @@ export function QuickBookingSheet({
         date: d.date ?? "",
         time: d.time ?? "",
       };
-      // с пояснением (например, время подобрали сами) показываем черновик — мастер подтверждает
-      if (!d.warnings.length && !d.notes?.length && isReady(parsed)) {
+      if (!d.warnings.length && isReady(parsed)) {
         try {
           await create(parsed);
           return;
