@@ -28,6 +28,7 @@ export default function OnboardingPage() {
   const [passwordSet, setPasswordSet] = useState(me.has_password);
   const [services, setServices] = useState<AdminService[]>([]);
   const [draft, setDraft] = useState({ name: "", duration_minutes: 60, price: "" });
+  const [adding, setAdding] = useState(false);
   const [days, setDays] = useState([true, true, true, true, true, false, false]);
   const [hours, setHours] = useState({ start: "10:00", end: "19:00" });
   const [timeMode, setTimeMode] = useState<"range" | "slots">("range");
@@ -67,17 +68,27 @@ export default function OnboardingPage() {
     });
   };
 
+  async function createService() {
+    const created = await api<AdminService>("/master/services", {
+      method: "POST",
+      body: JSON.stringify({ name: draft.name, duration_minutes: draft.duration_minutes, price: Number(draft.price) || 0 }),
+    });
+    setServices((list) => [...list, created]);
+    setDraft({ name: "", duration_minutes: 60, price: "" });
+    setAdding(false);
+  }
+
   const addService = (e: FormEvent) => {
     e.preventDefault();
-    run(async () => {
-      const created = await api<AdminService>("/master/services", {
-        method: "POST",
-        body: JSON.stringify({ name: draft.name, duration_minutes: draft.duration_minutes, price: Number(draft.price) || 0 }),
-      });
-      setServices((list) => [...list, created]);
-      setDraft({ name: "", duration_minutes: 60, price: "" });
-    });
+    run(createService);
   };
+
+  // «Далее» не теряет заполненную форму: сначала сохраняем услугу, потом идём дальше
+  const nextFromServices = () =>
+    run(async () => {
+      if (adding && draft.name.trim()) await createService();
+      setStep(2);
+    });
 
   const saveSchedule = () =>
     run(async () => {
@@ -101,6 +112,10 @@ export default function OnboardingPage() {
       }
       setStep(3);
     });
+
+  // шаг можно пропустить: расписание заполняется, только если выбраны и дни, и время
+  const scheduleReady =
+    (scheduleType === "weekly" ? days.some(Boolean) : pickedDates.length > 0) && (timeMode === "range" ? hours.start < hours.end : slots.length > 0);
 
   const saveSlug = (e: FormEvent) => {
     e.preventDefault();
@@ -152,7 +167,7 @@ export default function OnboardingPage() {
       {step === 1 && (
         <div className="mt-8">
           <h1 className="text-[28px] font-bold leading-tight">Что вы делаете и сколько стоит?</h1>
-          <p className="mt-2 text-muted">Добавьте хотя бы одну услугу. Остальные можно дописать потом.</p>
+          <p className="mt-2 text-muted">Это то, на что записываются клиенты. Хватит одной услуги — остальные добавите потом.</p>
 
           {services.length > 0 && (
             <ul className="mt-5 divide-y divide-hairline rounded-md border border-hairline">
@@ -168,31 +183,44 @@ export default function OnboardingPage() {
             </ul>
           )}
 
-          <form onSubmit={addService} className="mt-5 space-y-4 rounded-md bg-surface-soft p-4">
-            <Field label="Услуга">
-              <input className="input" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Маникюр с покрытием" required />
-            </Field>
-            <div>
-              <span className="label">Длительность</span>
-              <div className="grid grid-cols-4 gap-2">
-                {DURATIONS.map((m) => (
-                  <button type="button" key={m} onClick={() => setDraft({ ...draft, duration_minutes: m })} className={`chip px-2 ${draft.duration_minutes === m ? "chip-active" : ""}`}>
-                    {formatDuration(m)}
-                  </button>
-                ))}
+          {adding ? (
+            <form onSubmit={addService} className="mt-5 space-y-4 rounded-md bg-surface-soft p-4">
+              <Field label="Название">
+                <input className="input" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Маникюр с покрытием" autoFocus required />
+              </Field>
+              <div>
+                <span className="label">Сколько длится</span>
+                <div className="grid grid-cols-4 gap-2">
+                  {DURATIONS.map((m) => (
+                    <button type="button" key={m} onClick={() => setDraft({ ...draft, duration_minutes: m })} className={`chip px-2 ${draft.duration_minutes === m ? "chip-active" : ""}`}>
+                      {formatDuration(m)}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <Field label="Цена, ₽">
-              <input className="input" type="number" inputMode="numeric" min={0} step={50} value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="2000" />
-            </Field>
-            <button className="btn-secondary w-full" disabled={busy || !draft.name.trim()}>
+              <Field label="Цена, ₽">
+                <input className="input" type="number" inputMode="numeric" min={0} step={50} value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="2000" />
+              </Field>
+              <div className="flex gap-3">
+                <button type="button" className="btn-secondary flex-1" onClick={() => setAdding(false)}>Отмена</button>
+                <button className="btn-primary flex-1" disabled={busy || !draft.name.trim()}>Сохранить</button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-hairline py-5 font-semibold active:bg-surface-soft"
+            >
               <Plus className="h-5 w-5" aria-hidden />
-              Добавить услугу
+              {services.length ? "Добавить ещё услугу" : "Добавить услугу"}
             </button>
-          </form>
+          )}
 
           <Footer error={error} onBack={() => setStep(0)}>
-            <button type="button" className="btn-primary flex-1" disabled={!services.length} onClick={() => setStep(2)}>Далее</button>
+            <button type="button" className="btn-primary flex-1" disabled={busy} onClick={nextFromServices}>
+              {services.length || (adding && draft.name.trim()) ? "Далее" : "Пропустить"}
+            </button>
           </Footer>
         </div>
       )}
@@ -271,13 +299,8 @@ export default function OnboardingPage() {
           )}
           <p className="mt-3 text-xs text-muted">Одинаково для всех рабочих дней. Разное время по дням можно задать потом в «Расписании».</p>
           <Footer error={error} onBack={() => setStep(1)}>
-            <button
-              type="button"
-              className="btn-primary flex-1"
-              disabled={busy || (scheduleType === "weekly" ? !days.some(Boolean) : !pickedDates.length) || (timeMode === "range" ? hours.start >= hours.end : !slots.length)}
-              onClick={saveSchedule}
-            >
-              Далее
+            <button type="button" className="btn-primary flex-1" disabled={busy} onClick={scheduleReady ? saveSchedule : () => setStep(3)}>
+              {scheduleReady ? "Далее" : "Пропустить"}
             </button>
           </Footer>
         </div>

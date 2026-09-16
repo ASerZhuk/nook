@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronLeft, ChevronRight, MessageSquare, Plus, Sparkles, X } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookingModal } from "@/components/admin/BookingModal";
 import { useMaster } from "@/components/admin/MasterShell";
@@ -143,6 +144,17 @@ export default function BookingsPage() {
       </header>
 
       <section className="pt-4">
+        {services.data && schedule.data && (!services.data.length || !schedule.data.schedule_type) && (
+          <Link
+            href={!services.data.length ? "/app/services" : "/app/schedule"}
+            className="mb-4 flex items-center justify-between gap-3 rounded-md bg-surface-soft px-4 py-3 text-sm text-body"
+          >
+            <span>
+              <b className="text-ink">{!services.data.length ? "Добавьте услуги" : "Заполните расписание"}</b> — без этого клиенты не смогут записаться
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-muted-soft" aria-hidden />
+          </Link>
+        )}
         <button
           type="button"
           onClick={() => setQuick(true)}
