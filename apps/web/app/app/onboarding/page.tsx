@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
+import { InstallAppSheet } from "@/components/InstallAppSheet";
 import { LinkCard } from "@/components/admin/LinkCard";
 import { useMaster } from "@/components/admin/MasterShell";
 import { PushSetup } from "@/components/admin/PushSetup";
@@ -11,6 +12,7 @@ import { MODE_OPTIONS, Segmented, SlotGrid } from "@/components/admin/ScheduleCo
 import { Field, PasswordInput } from "@/components/admin/ui";
 import { api } from "@/lib/api";
 import { formatDuration, formatPrice, localToday, slugify } from "@/lib/format";
+import { isStandalone } from "@/lib/push";
 import type { AdminService } from "@/lib/types";
 
 const STEPS = ["О вас", "Услуги", "Расписание", "Ссылка"];
@@ -38,6 +40,7 @@ export default function OnboardingPage() {
   const [calendarMonth, setCalendarMonth] = useState(localToday);
   const [slug, setSlug] = useState(me.slug.startsWith("m-") ? "" : me.slug);
   const [done, setDone] = useState(false);
+  const [install, setInstall] = useState(false);
 
   useEffect(() => {
     api<AdminService[]>("/master/services").then(setServices).catch(() => undefined);
@@ -122,6 +125,7 @@ export default function OnboardingPage() {
     run(async () => {
       await api("/master/me", { method: "PUT", body: JSON.stringify({ slug, onboarded: true }) });
       setDone(true);
+      if (!isStandalone()) setInstall(true); // сразу предлагаем поставить приложение на телефон
     });
   };
 
@@ -335,10 +339,13 @@ export default function OnboardingPage() {
         </form>
       )}
 
+      {install && <InstallAppSheet onClose={() => setInstall(false)} description="Иконка на экране телефона, быстрый вход и уведомления о новых записях." />}
+
       {step === 3 && done && (
         <div className="mt-8 space-y-5">
           <h1 className="text-[28px] font-bold leading-tight">Всё готово!</h1>
           <LinkCard slug={slug} />
+          <button type="button" className="btn-secondary w-full" onClick={() => setInstall(true)}>Установить приложение</button>
           <PushSetup
             title="Уведомления о новых записях"
             description="Включите, чтобы сразу узнавать, когда клиент записался или отменил запись."

@@ -2,8 +2,9 @@
 
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
+import { InstallAppSheet } from "@/components/InstallAppSheet";
 import { api } from "@/lib/api";
-import { canPromptInstall, existingSubscription, isIOS, isStandalone, promptInstall, pushSupported, subscribePush } from "@/lib/push";
+import { canPromptInstall, existingSubscription, isIOS, isStandalone, pushSupported, subscribePush } from "@/lib/push";
 
 type Status = "loading" | "needs-install" | "unsupported" | "default" | "denied" | "on";
 
@@ -13,6 +14,7 @@ type Props = { title: string; description: string; subscribePath: string; testPa
 export function PushSetup({ title, description, subscribePath, testPath, clientToken }: Props) {
   const [status, setStatus] = useState<Status>("loading");
   const [installable, setInstallable] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -103,16 +105,21 @@ export function PushSetup({ title, description, subscribePath, testPath, clientT
         <p className="mt-3 text-sm text-muted">Этот браузер не поддерживает уведомления. Откройте ссылку в Safari (iPhone) или Chrome (Android).</p>
       )}
       {status === "needs-install" && (
-        <ol className="mt-4 space-y-2 rounded-sm bg-surface-soft p-4 text-sm text-body">
-          <li>1. Нажмите «Поделиться» внизу экрана Safari</li>
-          <li>2. Выберите «На экран „Домой“»</li>
-          <li>3. Откройте nook с иконки и включите уведомления</li>
-        </ol>
+        <>
+          <p className="mt-3 text-sm text-muted">Уведомления приходят только в установленное приложение.</p>
+          <button className="btn-primary mt-3 w-full" onClick={() => setShowInstall(true)}>Установить приложение</button>
+        </>
       )}
-      {installable && (
-        <button className="btn-secondary mt-3 w-full" onClick={async () => (await promptInstall()) && setInstallable(false)}>
-          Установить приложение
-        </button>
+      {installable && status !== "needs-install" && (
+        <button className="btn-secondary mt-3 w-full" onClick={() => setShowInstall(true)}>Установить приложение</button>
+      )}
+      {showInstall && (
+        <InstallAppSheet
+          onClose={() => {
+            setShowInstall(false);
+            setInstallable(!isStandalone() && canPromptInstall());
+          }}
+        />
       )}
       {message && <p className="mt-3 text-sm text-muted">{message}</p>}
       {error && <p className="mt-3 text-sm text-error">{error}</p>}

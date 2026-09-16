@@ -27,6 +27,9 @@ export const isStandalone = () =>
 
 export const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
+// На экран «Домой» на iOS добавляет только Safari: в Chrome/Firefox/Яндексе такого пункта нет
+export const isIOSSafari = () => isIOS() && !/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser|DuckDuckGo/i.test(navigator.userAgent);
+
 // На iOS PushManager доступен только в приложении, добавленном на экран «Домой» (iOS 16.4+)
 export const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
