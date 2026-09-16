@@ -17,7 +17,7 @@ import {
 import { useDialogs } from "@/components/DialogProvider";
 import { Empty, ErrorText, Field, Loading, PageHeader, Sheet } from "@/components/admin/ui";
 import { api, useLoad } from "@/lib/api";
-import { formatDay, localToday, parseDay, plural } from "@/lib/format";
+import { addDays, formatDay, localToday, parseDay, plural } from "@/lib/format";
 import type { Schedule, ScheduleType, TimeOff } from "@/lib/types";
 
 const WEEKDAYS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
@@ -232,20 +232,66 @@ function WeeklyEditorSheet({ data, onClose, onSaved }: { data: Schedule; onClose
 
 /* ---------- График по дням ---------- */
 
+type DayEntry = { range: string | null; slots: string[] };
+
+function dateEntries(data: Schedule) {
+  const entries = new Map<string, DayEntry>();
+  for (const h of data.date_hours) entries.set(h.date, { range: `${hm(h.start_time)}–${hm(h.end_time)}`, slots: [] });
+  for (const s of data.date_slots) {
+    const entry = entries.get(s.date) ?? { range: null, slots: [] };
+    entries.set(s.date, { range: null, slots: [...entry.slots, hm(s.start_time)].sort() });
+  }
+  return new Map([...entries].sort(([a], [b]) => a.localeCompare(b)));
+}
+
 function dateLabels(data: Schedule) {
   const labels = new Map<string, string>();
-  for (const h of data.date_hours) labels.set(h.date, `${hm(h.start_time)}–${hm(h.end_time)}`);
-  const slots = new Map<string, string[]>();
-  for (const s of data.date_slots) slots.set(s.date, [...(slots.get(s.date) ?? []), hm(s.start_time)]);
-  for (const [date, times] of slots) labels.set(date, `Окошки: ${times.sort().join(", ")}`);
-  return new Map([...labels].sort(([a], [b]) => a.localeCompare(b)));
+  for (const [date, { range, slots }] of dateEntries(data)) {
+    labels.set(date, range ?? `Окошки: ${slots.join(", ")}`);
+  }
+  return labels;
+}
+
+const MAX_CHIPS = 6; // остальные окошки сворачиваем в «+N», чтобы строка не разрасталась
+
+/** Один рабочий день в списке: дата и под ней время работы или окошки */
+function DayRow({ date, entry, onEdit }: { date: string; entry: DayEntry; onEdit: () => void }) {
+  const today = localToday();
+  const weekday = date === today ? "Сегодня" : date === addDays(today, 1) ? "Завтра" : formatDay(date, { weekday: "short" });
+  const shown = entry.slots.slice(0, MAX_CHIPS);
+  const hidden = entry.slots.length - shown.length;
+
+  return (
+    <li>
+      <button type="button" onClick={onEdit} className="flex w-full items-start justify-between gap-3 px-4 py-3.5 text-left active:bg-surface-soft">
+        <span className="min-w-0">
+          <span className="block font-medium first-letter:uppercase">
+            {weekday}, {formatDay(date, { day: "numeric", month: "long" })}
+          </span>
+          {entry.range ? (
+            <span className="mt-1 block text-sm text-muted">{entry.range}</span>
+          ) : (
+            <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {shown.map((time) => (
+                <span key={time} className="rounded-full bg-surface-soft px-2.5 py-1 text-xs font-medium text-body">
+                  {time}
+                </span>
+              ))}
+              {hidden > 0 && <span className="text-xs text-muted">ещё {hidden}</span>}
+            </span>
+          )}
+        </span>
+        <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-muted-soft" aria-hidden />
+      </button>
+    </li>
+  );
 }
 
 function DatesView({ data, onEdit }: { data: Schedule; onEdit: (dates: string[]) => void }) {
   const today = localToday();
   const [month, setMonth] = useState(today);
-  const labels = useMemo(() => dateLabels(data), [data]);
-  const markers = useMemo(() => Object.fromEntries([...labels.keys()].map((d) => [d, 1])), [labels]);
+  const entries = useMemo(() => dateEntries(data), [data]);
+  const markers = useMemo(() => Object.fromEntries([...entries.keys()].map((d) => [d, 1])), [entries]);
 
   return (
     <>
@@ -262,19 +308,18 @@ function DatesView({ data, onEdit }: { data: Schedule; onEdit: (dates: string[])
       </button>
 
       <section className="mt-8">
-        <h2 className="text-xl font-semibold">Ближайшие рабочие дни</h2>
-        {labels.size ? (
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-xl font-semibold">Ближайшие рабочие дни</h2>
+          {entries.size > 0 && (
+            <span className="shrink-0 text-sm text-muted">
+              {entries.size} {plural(entries.size, ["день", "дня", "дней"])}
+            </span>
+          )}
+        </div>
+        {entries.size ? (
           <ul className="mt-3 divide-y divide-hairline rounded-md border border-hairline">
-            {[...labels].map(([date, label]) => (
-              <li key={date}>
-                <button type="button" onClick={() => onEdit([date])} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left active:bg-surface-soft">
-                  <span className="min-w-0">
-                    <span className="block font-medium first-letter:uppercase">{formatDay(date)}</span>
-                    <span className="block truncate text-sm text-muted">{label}</span>
-                  </span>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-soft" aria-hidden />
-                </button>
-              </li>
+            {[...entries].map(([date, entry]) => (
+              <DayRow key={date} date={date} entry={entry} onEdit={() => onEdit([date])} />
             ))}
           </ul>
         ) : (
