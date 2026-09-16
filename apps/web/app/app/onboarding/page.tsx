@@ -1,17 +1,25 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, ChevronDown, Plus } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { InstallAppSheet } from "@/components/InstallAppSheet";
 import { LinkCard } from "@/components/admin/LinkCard";
 import { useMaster } from "@/components/admin/MasterShell";
 import { PushSetup } from "@/components/admin/PushSetup";
 import { MonthCalendar } from "@/components/admin/MonthCalendar";
-import { MODE_OPTIONS, Segmented, SlotGrid } from "@/components/admin/ScheduleControls";
+import {
+  DayConfigFields,
+  describeConfig,
+  isValidConfig,
+  MODE_OPTIONS,
+  Segmented,
+  SlotGrid,
+  type DayConfig,
+} from "@/components/admin/ScheduleControls";
 import { Field, PasswordInput } from "@/components/admin/ui";
 import { api } from "@/lib/api";
-import { formatDuration, formatPrice, localToday, slugify } from "@/lib/format";
+import { formatDay, formatDuration, formatPrice, localToday, slugify } from "@/lib/format";
 import { isStandalone } from "@/lib/push";
 import type { AdminService } from "@/lib/types";
 
@@ -37,6 +45,9 @@ export default function OnboardingPage() {
   const [slots, setSlots] = useState<string[]>([]);
   const [scheduleType, setScheduleType] = useState<"weekly" | "dates">("weekly");
   const [pickedDates, setPickedDates] = useState<string[]>([]);
+  const [sameTime, setSameTime] = useState(true);
+  const [perDay, setPerDay] = useState<Record<string, DayConfig>>({});
+  const [openDay, setOpenDay] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(localToday);
   const [slug, setSlug] = useState(me.slug.startsWith("m-") ? "" : me.slug);
   const [done, setDone] = useState(false);
@@ -96,7 +107,23 @@ export default function OnboardingPage() {
   const saveSchedule = () =>
     run(async () => {
       const range = timeMode === "range";
-      if (scheduleType === "dates") {
+      if (individual) {
+        await api("/master/schedule/days", {
+          method: "PUT",
+          body: JSON.stringify({
+            days: pickedDates.map((date) => {
+              const c = dayConfig(date);
+              return {
+                date,
+                mode: c.mode,
+                start_time: c.mode === "range" ? c.start : null,
+                end_time: c.mode === "range" ? c.end : null,
+                slots: c.mode === "slots" ? c.slots : [],
+              };
+            }),
+          }),
+        });
+      } else if (scheduleType === "dates") {
         await api("/master/schedule/dates", {
           method: "PUT",
           body: JSON.stringify(
@@ -116,9 +143,15 @@ export default function OnboardingPage() {
       setStep(3);
     });
 
+  // общее время для всех дней; когда выключено — у каждого дня свой конфиг
+  const sharedConfig: DayConfig = { mode: timeMode, start: hours.start, end: hours.end, slots };
+  const dayConfig = (date: string) => perDay[date] ?? sharedConfig;
+  const individual = scheduleType === "dates" && !sameTime && pickedDates.length > 1;
+
   // шаг можно пропустить: расписание заполняется, только если выбраны и дни, и время
-  const scheduleReady =
-    (scheduleType === "weekly" ? days.some(Boolean) : pickedDates.length > 0) && (timeMode === "range" ? hours.start < hours.end : slots.length > 0);
+  const scheduleReady = individual
+    ? pickedDates.every((date) => isValidConfig(dayConfig(date)))
+    : (scheduleType === "weekly" ? days.some(Boolean) : pickedDates.length > 0) && (timeMode === "range" ? hours.start < hours.end : slots.length > 0);
 
   const saveSlug = (e: FormEvent) => {
     e.preventDefault();
@@ -265,6 +298,23 @@ export default function OnboardingPage() {
                   minDate={localToday()}
                 />
               </div>
+              {pickedDates.length > 1 && (
+                <label className="mt-5 flex items-center justify-between gap-3 text-[15px]">
+                  <span>
+                    Одинаковое время для всех дней
+                    <span className="block text-xs text-muted">Выключите, чтобы задать каждому дню своё время или окошки</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 shrink-0 accent-primary"
+                    checked={sameTime}
+                    onChange={(e) => {
+                      setSameTime(e.target.checked);
+                      setOpenDay(null);
+                    }}
+                  />
+                </label>
+              )}
             </>
           ) : (
             <>
@@ -284,27 +334,67 @@ export default function OnboardingPage() {
           </div>
             </>
           )}
-          <span className="label mt-6">Время приёма</span>
-          <Segmented options={MODE_OPTIONS} value={timeMode} onChange={setTimeMode} full />
-          {timeMode === "range" ? (
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <Field label="С">
-                <input className="input" type="time" value={hours.start} onChange={(e) => setHours({ ...hours, start: e.target.value })} />
-              </Field>
-              <Field label="До">
-                <input className="input" type="time" value={hours.end} onChange={(e) => setHours({ ...hours, end: e.target.value })} />
-              </Field>
-            </div>
+          {individual ? (
+            <>
+              <span className="label mt-6">Время приёма по дням</span>
+              <ul className="divide-y divide-hairline rounded-md border border-hairline">
+                {pickedDates.map((date) => {
+                  const config = dayConfig(date);
+                  const expanded = openDay === date;
+                  return (
+                    <li key={date}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenDay(expanded ? null : date)}
+                        aria-expanded={expanded}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left active:bg-surface-soft"
+                      >
+                        <span className="min-w-0">
+                          <span className="block font-medium first-letter:uppercase">{formatDay(date, { weekday: "short", day: "numeric", month: "long" })}</span>
+                          <span className={`block truncate text-sm ${isValidConfig(config) ? "text-muted" : "text-error"}`}>{describeConfig(config)}</span>
+                        </span>
+                        <ChevronDown className={`h-5 w-5 shrink-0 text-muted-soft transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden />
+                      </button>
+                      {expanded && (
+                        <div className="px-4 pb-4">
+                          <DayConfigFields value={config} onChange={(c) => setPerDay((map) => ({ ...map, [date]: c }))} />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-3 text-xs text-muted">Нажмите на день, чтобы задать ему время или окошки.</p>
+            </>
           ) : (
-            <div className="mt-4">
-              <p className="mb-3 text-sm text-muted">Отметьте время, на которое клиенты смогут записаться.</p>
-              <SlotGrid selected={slots} onChange={setSlots} />
-            </div>
+            <>
+              <span className="label mt-6">Время приёма</span>
+              <Segmented options={MODE_OPTIONS} value={timeMode} onChange={setTimeMode} full />
+              {timeMode === "range" ? (
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <Field label="С">
+                    <input className="input" type="time" value={hours.start} onChange={(e) => setHours({ ...hours, start: e.target.value })} />
+                  </Field>
+                  <Field label="До">
+                    <input className="input" type="time" value={hours.end} onChange={(e) => setHours({ ...hours, end: e.target.value })} />
+                  </Field>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <p className="mb-3 text-sm text-muted">Отметьте время, на которое клиенты смогут записаться.</p>
+                  <SlotGrid selected={slots} onChange={setSlots} />
+                </div>
+              )}
+              <p className="mt-3 text-xs text-muted">
+                {scheduleType === "dates" && pickedDates.length > 1
+                  ? "Одинаково для всех выбранных дней — выключите переключатель выше, чтобы задать каждому своё."
+                  : "Одинаково для всех рабочих дней. Разное время можно задать потом в «Расписании»."}
+              </p>
+            </>
           )}
-          <p className="mt-3 text-xs text-muted">Одинаково для всех рабочих дней. Разное время по дням можно задать потом в «Расписании».</p>
           <Footer error={error} onBack={() => setStep(1)}>
             <button type="button" className="btn-primary flex-1" disabled={busy} onClick={scheduleReady ? saveSchedule : () => setStep(3)}>
-              {scheduleReady ? "Далее" : "Пропустить"}
+              {scheduleReady ? "Сохранить и продолжить" : "Пропустить"}
             </button>
           </Footer>
         </div>

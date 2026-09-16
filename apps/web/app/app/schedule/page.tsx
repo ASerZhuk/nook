@@ -3,7 +3,17 @@
 import { ChevronDown, ChevronRight, Lock, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { MonthCalendar } from "@/components/admin/MonthCalendar";
-import { MODE_OPTIONS, Segmented, SlotGrid } from "@/components/admin/ScheduleControls";
+import {
+  DayConfigFields,
+  DEFAULT_DAY,
+  describeConfig,
+  isValidConfig,
+  MODE_OPTIONS,
+  Segmented,
+  SlotGrid,
+  type DayConfig,
+  type Mode,
+} from "@/components/admin/ScheduleControls";
 import { useDialogs } from "@/components/DialogProvider";
 import { Empty, ErrorText, Field, Loading, PageHeader, Sheet } from "@/components/admin/ui";
 import { api, useLoad } from "@/lib/api";
@@ -13,8 +23,6 @@ import type { Schedule, ScheduleType, TimeOff } from "@/lib/types";
 const WEEKDAYS = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 const hm = (time: string) => time.slice(0, 5);
 
-type Mode = "range" | "slots";
-type DayMode = Mode | "off";
 type Day = { enabled: boolean; mode: Mode; start: string; end: string; slots: string[] };
 type OnSaved = (schedule: Schedule) => void;
 type Editor = { kind: "weekly" } | { kind: "dates"; dates: string[] } | { kind: "timeoff" } | null;
@@ -22,11 +30,6 @@ type Editor = { kind: "weekly" } | { kind: "dates"; dates: string[] } | { kind: 
 const TYPE_OPTIONS = [
   ["weekly", "Постоянный"],
   ["dates", "По дням"],
-] as const;
-const DAY_MODE_OPTIONS = [
-  ["range", "С — до"],
-  ["slots", "Окошки"],
-  ["off", "Выходной"],
 ] as const;
 
 export default function SchedulePage() {
@@ -284,42 +287,12 @@ function DatesView({ data, onEdit }: { data: Schedule; onEdit: (dates: string[])
   );
 }
 
-type DayConfig = { mode: DayMode; start: string; end: string; slots: string[] };
-const DEFAULT_DAY: DayConfig = { mode: "range", start: "10:00", end: "19:00", slots: [] };
-
 function configFor(data: Schedule, date: string | undefined): DayConfig {
   const slots = data.date_slots.filter((s) => s.date === date).map((s) => hm(s.start_time)).sort();
   const hours = data.date_hours.find((h) => h.date === date);
   if (slots.length) return { ...DEFAULT_DAY, mode: "slots", slots };
   if (hours) return { ...DEFAULT_DAY, start: hm(hours.start_time), end: hm(hours.end_time) };
   return DEFAULT_DAY;
-}
-
-const isValidConfig = (c: DayConfig) => (c.mode !== "range" || c.start < c.end) && (c.mode !== "slots" || c.slots.length > 0);
-
-function describeConfig(c: DayConfig) {
-  if (c.mode === "off") return "Выходной";
-  if (c.mode === "range") return c.start < c.end ? `${c.start}–${c.end}` : "Проверьте время";
-  return c.slots.length ? `Окошки: ${c.slots.join(", ")}` : "Выберите окошки";
-}
-
-function DayConfigFields({ value, onChange }: { value: DayConfig; onChange: (config: DayConfig) => void }) {
-  return (
-    <>
-      <Segmented options={DAY_MODE_OPTIONS} value={value.mode} onChange={(mode) => onChange({ ...value, mode })} full />
-      <div className="mt-4">
-        {value.mode === "range" && (
-          <div className="flex items-center gap-2">
-            <input type="time" className="input-sm flex-1" value={value.start} onChange={(e) => onChange({ ...value, start: e.target.value })} aria-label="С" />
-            <span className="text-muted">—</span>
-            <input type="time" className="input-sm flex-1" value={value.end} onChange={(e) => onChange({ ...value, end: e.target.value })} aria-label="До" />
-          </div>
-        )}
-        {value.mode === "slots" && <SlotGrid selected={value.slots} onChange={(slots) => onChange({ ...value, slots })} />}
-        {value.mode === "off" && <p className="rounded-sm bg-surface-soft p-3 text-sm text-muted">Клиенты не смогут записаться.</p>}
-      </div>
-    </>
-  );
 }
 
 function DatesEditorSheet({
