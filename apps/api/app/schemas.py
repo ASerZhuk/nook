@@ -56,6 +56,7 @@ class MasterProfile(ORM):
     address: str
     onboarded: bool
     has_password: bool
+    show_phone: bool
     avatar_url: str | None
 
 
@@ -64,6 +65,7 @@ class ProfileUpdate(BaseModel):
     specialty: str | None = Field(default=None, max_length=120)
     address: str | None = Field(default=None, max_length=255)
     slug: str | None = Field(default=None, max_length=30)
+    show_phone: bool | None = None
     onboarded: bool | None = None
 
 
@@ -72,7 +74,7 @@ class PublicMaster(BaseModel):
     name: str
     specialty: str
     address: str
-    phone: str
+    phone: str  # "" — мастер скрыл номер
     timezone: str
     avatar_url: str | None = None
 
@@ -236,7 +238,7 @@ class ClientBookingMaster(BaseModel):
     name: str
     specialty: str
     address: str
-    phone: str
+    phone: str  # "" — мастер скрыл номер
     avatar_url: str | None = None
 
 

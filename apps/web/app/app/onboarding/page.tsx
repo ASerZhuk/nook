@@ -153,13 +153,24 @@ export default function OnboardingPage() {
     ? pickedDates.every((date) => isValidConfig(dayConfig(date)))
     : (scheduleType === "weekly" ? days.some(Boolean) : pickedDates.length > 0) && (timeMode === "range" ? hours.start < hours.end : slots.length > 0);
 
-  const saveSlug = (e: FormEvent) => {
-    e.preventDefault();
-    run(async () => {
-      await api("/master/me", { method: "PUT", body: JSON.stringify({ slug, onboarded: true }) });
+  function finish(chosen: string) {
+    return run(async () => {
+      try {
+        await api("/master/me", { method: "PUT", body: JSON.stringify(chosen ? { slug: chosen, onboarded: true } : { onboarded: true }) });
+      } catch (e) {
+        if (!chosen) throw e;
+        // ссылка занята или не подошла — оставляем ту, что выдана при регистрации, поменять можно в профиле
+        await api("/master/me", { method: "PUT", body: JSON.stringify({ onboarded: true }) });
+        setSlug(me.slug);
+      }
       setDone(true);
       if (!isStandalone()) setInstall(true); // сразу предлагаем поставить приложение на телефон
     });
+  }
+
+  const saveSlug = (e: FormEvent) => {
+    e.preventDefault();
+    finish(slug);
   };
 
   return (
@@ -426,6 +437,9 @@ export default function OnboardingPage() {
           <Footer error={error} onBack={() => setStep(2)}>
             <button className="btn-primary flex-1" disabled={busy || slug.length < 3}>Готово</button>
           </Footer>
+          <button type="button" className="btn-ghost mt-3 w-full" disabled={busy} onClick={() => finish(slug.length >= 3 ? slug : "")}>
+            Пропустить — выберу потом
+          </button>
         </form>
       )}
 

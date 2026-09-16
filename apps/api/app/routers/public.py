@@ -30,7 +30,8 @@ async def master_page(master: PublicMasterDep, session: SessionDep) -> PublicPag
     return PublicPage(
         master=PublicMaster(
             slug=master.slug, name=master.name, specialty=master.specialty,
-            address=master.address, phone=master.phone, timezone=settings.timezone, avatar_url=master.avatar_url,
+            address=master.address, phone=master.phone if master.show_phone else "",
+            timezone=settings.timezone, avatar_url=master.avatar_url,
         ),
         services=[ServiceOut.model_validate(s) for s in services],
     )

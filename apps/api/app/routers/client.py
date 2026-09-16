@@ -22,7 +22,7 @@ def client_booking_out(booking: Booking, service: Service, master: Master) -> Cl
         price=float(service.price),
         master=ClientBookingMaster(
             slug=master.slug, name=master.name, specialty=master.specialty,
-            address=master.address, phone=master.phone, avatar_url=master.avatar_url,
+            address=master.address, phone=master.phone if master.show_phone else "", avatar_url=master.avatar_url,
         ),
     )
 

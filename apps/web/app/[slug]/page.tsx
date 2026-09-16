@@ -34,7 +34,9 @@ export default async function MasterBookingPage({ params, searchParams }: Props)
       </div>
       <div className="mt-4 space-y-1 text-sm text-body">
         {master.address && <p>{master.address}</p>}
-        <a href={`tel:${master.phone}`} className="inline-block underline underline-offset-4">{maskPhone(master.phone)}</a>
+        {master.phone && (
+          <a href={`tel:${master.phone}`} className="inline-block underline underline-offset-4">{maskPhone(master.phone)}</a>
+        )}
       </div>
 
       <BookingFlow

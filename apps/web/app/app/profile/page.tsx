@@ -19,7 +19,7 @@ export default function ProfilePage() {
   const { me, reload } = useMaster();
   const services = useLoad<AdminService[]>("/master/services");
   const schedule = useLoad<Schedule>("/master/schedule");
-  const [form, setForm] = useState({ name: me.name, specialty: me.specialty, address: me.address, slug: me.slug });
+  const [form, setForm] = useState({ name: me.name, specialty: me.specialty, address: me.address, slug: me.slug, show_phone: me.show_phone });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -88,6 +88,18 @@ export default function ProfilePage() {
         <Field label="Адрес">
           <input className="input-sm" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </Field>
+        <label className="flex items-center justify-between gap-3 text-[15px]">
+          <span>
+            Показывать мой номер
+            <span className="block text-xs text-muted">Клиенты увидят его на странице записи и смогут позвонить</span>
+          </span>
+          <input
+            type="checkbox"
+            className="h-5 w-5 shrink-0 accent-primary"
+            checked={form.show_phone}
+            onChange={(e) => setForm({ ...form, show_phone: e.target.checked })}
+          />
+        </label>
         <label className="block">
           <span className="label">Ссылка</span>
           <span className="flex h-11 items-center rounded-sm border border-hairline px-3 focus-within:border-primary focus-within:shadow-[inset_0_0_0_1px_var(--color-primary)]">

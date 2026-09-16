@@ -433,6 +433,25 @@ async def list_clients(master: MasterDep, session: SessionDep) -> list[ClientOut
     return [ClientOut.model_validate(c).model_copy(update={"visits": visits.get(c.phone, 0)}) for c in clients]
 
 
+@router.get("/clients/{client_id}/bookings", response_model=list[BookingOut])
+async def client_bookings(client_id: str, master: MasterDep, session: SessionDep) -> list[BookingOut]:
+    """История визитов клиента — от новых к старым."""
+    client = await session.get(Client, client_id)
+    if not client or client.master_id != master.id:
+        raise HTTPException(404, "Клиент не найден")
+    rows = (
+        await session.execute(
+            select(Booking, Service)
+            .join(Service, Service.id == Booking.service_id)
+            .where(Booking.master_id == master.id, Booking.client_phone == client.phone)
+            .order_by(Booking.start_at.desc())
+            .limit(50)
+        )
+    ).all()
+    notified = await subscribed_owners(session, "client", {b.account_id for b, _ in rows if b.account_id})
+    return [booking_out(b, s, notified) for b, s in rows]
+
+
 @router.put("/clients/{client_id}", response_model=ClientOut)
 async def update_client(client_id: str, data: ClientUpdate, master: MasterDep, session: SessionDep) -> Client:
     client = await session.get(Client, client_id)

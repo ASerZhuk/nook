@@ -105,15 +105,17 @@ function Inner({ token }: { token: string }) {
       </section>
 
       {!cancelled && upcoming && (
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className={`mt-4 grid gap-2 ${b.master.phone ? "grid-cols-2" : "grid-cols-1"}`}>
           <a href={`/api/r/${token}/ics`} className="btn-secondary h-11 px-2 text-sm">
             <CalendarPlus className="h-4 w-4" aria-hidden />
             В календарь
           </a>
-          <a href={`tel:${b.master.phone}`} className="btn-secondary h-11 px-2 text-sm">
-            <Phone className="h-4 w-4" aria-hidden />
-            Мастеру
-          </a>
+          {b.master.phone && (
+            <a href={`tel:${b.master.phone}`} className="btn-secondary h-11 px-2 text-sm">
+              <Phone className="h-4 w-4" aria-hidden />
+              Мастеру
+            </a>
+          )}
         </div>
       )}
 

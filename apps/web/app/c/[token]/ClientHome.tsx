@@ -172,8 +172,8 @@ function BookingCard({ booking: b, token, onChanged }: { booking: ClientBooking;
         <Link href={`/${b.master.slug}`} className="btn-secondary mt-4 h-11 w-full text-sm">Выбрать другое время</Link>
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <a href={`tel:${b.master.phone}`} className="btn-secondary h-11 px-2 text-sm">Позвонить</a>
+          <div className={`mt-4 grid gap-2 ${b.master.phone ? "grid-cols-2" : "grid-cols-1"}`}>
+            {b.master.phone && <a href={`tel:${b.master.phone}`} className="btn-secondary h-11 px-2 text-sm">Позвонить</a>}
             <a href={icsUrl(b, token)} className="btn-secondary h-11 px-2 text-sm">В календарь</a>
           </div>
           <button type="button" onClick={cancel} className="btn-ghost mt-1 w-full text-error">Отменить запись</button>

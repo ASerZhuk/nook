@@ -33,6 +33,7 @@ class Master(Base):
     specialty: Mapped[str] = mapped_column(String(120), default="")
     address: Mapped[str] = mapped_column(String(255), default="")
     onboarded: Mapped[bool] = mapped_column(Boolean, default=False)
+    show_phone: Mapped[bool] = mapped_column(Boolean, default=True)  # показывать номер на странице записи
     password_hash: Mapped[str | None] = mapped_column(String(255))  # вход без звонка
     avatar_url: Mapped[str | None] = mapped_column(String(255))  # /api/media/avatars/...
     schedule_type: Mapped[str | None] = mapped_column(String(10))  # weekly | dates; выбирается один раз

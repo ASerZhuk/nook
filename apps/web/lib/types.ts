@@ -11,6 +11,7 @@ export type MasterProfile = {
   address: string;
   onboarded: boolean;
   has_password: boolean;
+  show_phone: boolean;
   avatar_url: string | null;
 };
 export type PublicMaster = {
