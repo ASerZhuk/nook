@@ -34,8 +34,8 @@ SYSTEM_PROMPT = """Ты помогаешь частному мастеру за�
 # части дня для «на утро», «после обеда» — границы и подпись для мастера
 TIME_OF_DAY = {
     "morning": (dt.time(0), dt.time(12), "утром"),
-    "afternoon": (dt.time(12), dt.time(16), "днём"),
-    "evening": (dt.time(16), dt.time.max, "вечером"),
+    "afternoon": (dt.time(12), dt.time(18), "днём"),
+    "evening": (dt.time(18), dt.time.max, "вечером"),
 }
 
 
