@@ -19,7 +19,7 @@ import {
 } from "@/components/admin/ScheduleControls";
 import { Field, PasswordInput } from "@/components/admin/ui";
 import { api } from "@/lib/api";
-import { formatDay, formatDuration, formatPrice, localToday, slugify } from "@/lib/format";
+import { formatDay, formatDuration, formatPrice, localToday, shortDuration, slugify } from "@/lib/format";
 import { isStandalone } from "@/lib/push";
 import type { AdminService } from "@/lib/types";
 
@@ -240,8 +240,8 @@ export default function OnboardingPage() {
                 <span className="label">Сколько длится</span>
                 <div className="grid grid-cols-4 gap-2">
                   {DURATIONS.map((m) => (
-                    <button type="button" key={m} onClick={() => setDraft({ ...draft, duration_minutes: m })} className={`chip px-2 ${draft.duration_minutes === m ? "chip-active" : ""}`}>
-                      {formatDuration(m)}
+                    <button type="button" key={m} onClick={() => setDraft({ ...draft, duration_minutes: m })} className={`chip whitespace-nowrap px-2 ${draft.duration_minutes === m ? "chip-active" : ""}`}>
+                      {shortDuration(m)}
                     </button>
                   ))}
                 </div>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ClientOnly, Loading } from "@/components/admin/ui";
 import { useDialogs } from "@/components/DialogProvider";
+import { OpenInBrowser } from "@/components/OpenInBrowser";
 import { api, CLIENT_TOKEN_KEY, useLoad } from "@/lib/api";
 import { formatDay, formatPrice, hhmm, localNowIso } from "@/lib/format";
 import type { BookingLink, ClientBooking } from "@/lib/types";
@@ -81,7 +82,8 @@ function Inner({ token }: { token: string }) {
 
   return (
     <main className="px-4 pb-12 pt-[calc(env(safe-area-inset-top)+20px)]">
-      <Image src="/logo.png" alt="nook" width={474} height={128} className="h-7 w-auto" priority />
+      <Image src="/logo.png" alt="nook" width={474} height={128} className="mb-4 h-7 w-auto" priority />
+      <OpenInBrowser />
 
       <section className="mt-6 rounded-md bg-surface-soft p-5 text-center">
         {cancelled ? (

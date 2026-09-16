@@ -5,11 +5,12 @@ import { useState, type FormEvent } from "react";
 import { Empty, ErrorText, Field, Loading, PageHeader } from "@/components/admin/ui";
 import { useDialogs } from "@/components/DialogProvider";
 import { api, useLoad } from "@/lib/api";
-import { formatDuration, formatPrice } from "@/lib/format";
+import { formatDuration, formatPrice, shortDuration } from "@/lib/format";
 import type { AdminService } from "@/lib/types";
 
 type Draft = Omit<AdminService, "id">;
 const EMPTY: Draft = { name: "", duration_minutes: 60, price: 0, is_active: true };
+const DURATIONS = [30, 60, 90, 120];
 
 export default function ServicesPage() {
   const { data, error, reload } = useLoad<AdminService[]>("/master/services");
@@ -121,30 +122,63 @@ function ServiceForm({ initial, onSave, onDelete, onCancel }: FormProps) {
   }
 
   return (
-    <form onSubmit={submit} className="card grid grid-cols-2 gap-4 p-4 sm:grid-cols-[1fr_160px_140px] sm:p-6">
-      <Field label="Название" className="col-span-2 sm:col-span-1">
-        <input className="input-sm" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required maxLength={120} />
+    <form onSubmit={submit} className="card space-y-4 p-4 sm:p-6">
+      <Field label="Название">
+        <input className="input-sm" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Маникюр с покрытием" required maxLength={120} autoFocus />
       </Field>
-      <Field label="Длительность, мин">
-        <input type="number" inputMode="numeric" className="input-sm" min={5} max={720} step={5} value={draft.duration_minutes} onChange={(e) => setDraft({ ...draft, duration_minutes: Number(e.target.value) })} required />
-      </Field>
-      <Field label="Цена, ₽">
-        <input type="number" inputMode="numeric" className="input-sm" min={0} step={50} value={draft.price} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} required />
-      </Field>
-      <label className="col-span-2 flex items-center gap-3 py-1 text-[15px] sm:col-span-3">
-        <input type="checkbox" className="h-5 w-5 accent-primary" checked={draft.is_active} onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })} />
-        Доступна для записи
-      </label>
-      <div className="col-span-2 flex flex-wrap items-center gap-3 sm:col-span-3">
-        <button className="btn-primary flex-1 sm:flex-none" disabled={saving}>{saving ? "Сохраняем…" : "Сохранить"}</button>
-        <button type="button" className="btn-secondary flex-1 sm:flex-none" onClick={onCancel}>Отмена</button>
-        {onDelete && (
-          <button type="button" className="btn-ghost w-full text-error sm:ml-auto sm:w-auto" disabled={saving} onClick={() => run(onDelete)}>
-            Удалить услугу
-          </button>
-        )}
+
+      <div>
+        <span className="label">Сколько длится</span>
+        <div className="grid grid-cols-4 gap-2">
+          {DURATIONS.map((m) => (
+            <button
+              type="button"
+              key={m}
+              onClick={() => setDraft({ ...draft, duration_minutes: m })}
+              className={`chip whitespace-nowrap px-2 ${draft.duration_minutes === m ? "chip-active" : ""}`}
+            >
+              {shortDuration(m)}
+            </button>
+          ))}
+        </div>
+        <label className="mt-2 flex items-center gap-2 text-sm text-muted">
+          Другое, мин
+          <input
+            type="number"
+            inputMode="numeric"
+            className="input-sm h-10 w-24"
+            min={5}
+            max={720}
+            step={5}
+            value={draft.duration_minutes}
+            onChange={(e) => setDraft({ ...draft, duration_minutes: Number(e.target.value) })}
+            required
+          />
+        </label>
       </div>
-      {error && <p className="col-span-2 text-sm text-error sm:col-span-3">{error}</p>}
+
+      <Field label="Цена, ₽">
+        <input type="number" inputMode="numeric" className="input-sm" min={0} step={50} value={draft.price} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} placeholder="2000" required />
+      </Field>
+
+      <label className="flex items-center justify-between gap-3 text-[15px]">
+        <span>
+          Доступна для записи
+          <span className="block text-xs text-muted">Выключите, чтобы скрыть услугу от клиентов</span>
+        </span>
+        <input type="checkbox" className="h-5 w-5 shrink-0 accent-primary" checked={draft.is_active} onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })} />
+      </label>
+
+      <div className="flex gap-3">
+        <button type="button" className="btn-secondary flex-1" onClick={onCancel}>Отмена</button>
+        <button className="btn-primary flex-1" disabled={saving}>{saving ? "Сохраняем…" : "Сохранить"}</button>
+      </div>
+      {onDelete && (
+        <button type="button" className="btn-ghost w-full text-error" disabled={saving} onClick={() => run(onDelete)}>
+          Удалить услугу
+        </button>
+      )}
+      <ErrorText>{error}</ErrorText>
     </form>
   );
 }

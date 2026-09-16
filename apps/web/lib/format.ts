@@ -7,6 +7,14 @@ export function formatDuration(minutes: number) {
   return m ? `${h} ч ${m} мин` : `${h} ч`;
 }
 
+/** Короткая длительность для чипов: «30 мин», «1 ч», «1 ч 30» — чтобы не переносилась в две строки */
+export function shortDuration(minutes: number) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (!h) return `${m} мин`;
+  return m ? `${h} ч ${m}` : `${h} ч`;
+}
+
 export function plural(n: number, forms: [string, string, string]) {
   const mod10 = n % 10;
   const mod100 = n % 100;

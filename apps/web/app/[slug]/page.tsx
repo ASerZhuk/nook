@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Avatar } from "@/components/Avatar";
+import { OpenInBrowser } from "@/components/OpenInBrowser";
 import { maskPhone, todayIn } from "@/lib/format";
 import { getMasterPage } from "@/lib/server-api";
 import { BookingFlow } from "./BookingFlow";
@@ -25,6 +26,7 @@ export default async function MasterBookingPage({ params, searchParams }: Props)
 
   return (
     <main className="px-4 pb-6 pt-[calc(env(safe-area-inset-top)+24px)]">
+      <OpenInBrowser />
       <div className="flex items-center gap-4">
         <Avatar name={master.name} url={master.avatar_url} size={64} />
         <div className="min-w-0">
