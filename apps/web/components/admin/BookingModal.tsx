@@ -32,6 +32,7 @@ export function BookingModal({ services, initialDate, initialTime, onClose, onCr
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [customTime, setCustomTime] = useState("");
   const { confirm } = useDialogs();
   const preferredTime = useRef(initialTime);
 
@@ -113,6 +114,15 @@ export function BookingModal({ services, initialDate, initialTime, onClose, onCr
     }
   }
 
+  function pickCustomTime() {
+    if (!service || !customTime) return;
+    const start = `${date}T${customTime}:00`;
+    const end = new Date(`${start}Z`);
+    end.setUTCMinutes(end.getUTCMinutes() + service.duration_minutes);
+    setSlot({ start_at: start, end_at: end.toISOString().slice(0, 19) });
+    setError("");
+  }
+
   function pickService(id: string) {
     setServiceId(id);
     setError("");
@@ -179,7 +189,7 @@ export function BookingModal({ services, initialDate, initialTime, onClose, onCr
                   </div>
                 ) : slots.length === 0 ? (
                   <p className="rounded-md bg-surface-soft p-4 text-sm text-muted">
-                    Нет свободного времени под эту услугу — выберите другой день.
+                    Свободного времени под эту услугу нет — выберите другой день или задайте время вручную.
                   </p>
                 ) : (
                   DAY_PARTS.map(([label, from, to]) => {
@@ -208,6 +218,28 @@ export function BookingModal({ services, initialDate, initialTime, onClose, onCr
                     );
                   })
                 )}
+
+                {/* своё время: сетка идёт по длительности услуги, но мастер может назначить любое */}
+                <div className="mt-5 border-t border-hairline pt-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Другое время</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="time"
+                      className="input-sm flex-1"
+                      value={customTime}
+                      onChange={(e) => setCustomTime(e.target.value)}
+                      aria-label="Своё время"
+                    />
+                    <button type="button" className="btn-secondary h-11 px-4" disabled={!customTime} onClick={pickCustomTime}>
+                      Выбрать
+                    </button>
+                  </div>
+                  {slot && !slots?.some((s) => s.start_at === slot.start_at) && (
+                    <p className="mt-2 text-sm text-muted">
+                      Выбрано: {hhmm(slot.start_at)}–{hhmm(slot.end_at)} · {formatDuration(service.duration_minutes)}
+                    </p>
+                  )}
+                </div>
               </div>
             </>
           )}
