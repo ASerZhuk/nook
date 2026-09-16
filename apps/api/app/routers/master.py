@@ -39,7 +39,16 @@ from app.schemas import (
     WorkingSlotItem,
 )
 from app.security import hash_password, sign_id
-from app.services.booking import free_slots, has_conflict, is_valid_phone, linked_account, normalize_phone, to_local, upsert_client
+from app.services.booking import (
+    free_slots,
+    has_conflict,
+    is_valid_phone,
+    linked_account,
+    normalize_phone,
+    to_local,
+    upsert_client,
+    within_schedule,
+)
 from app.services.notify import fmt_when, push, save_subscription, subscribed_owners
 from app.services.media import MediaError, process_avatar, remove_media, save_avatar
 from app.services.quick_booking import QuickParseError, ask_llm, build_draft
@@ -77,6 +86,22 @@ async def own_service(session: AsyncSession, master: Master, service_id: str) ->
     if not service or service.master_id != master.id:
         raise HTTPException(404, "Услуга не найдена")
     return service
+
+
+async def check_schedule(
+    session: AsyncSession, master: Master, service: Service, start: dt.datetime, end: dt.datetime, confirmed: bool
+) -> None:
+    """Услуга должна помещаться в рабочее время; вне графика — только по подтверждению мастера."""
+    if confirmed or not master.schedule_type:  # график не заполнен — сверять не с чем
+        return
+    if not await within_schedule(session, master.id, start, end):
+        raise HTTPException(
+            409,
+            {
+                "code": "outside_schedule",
+                "message": f"{service.name} займёт {start:%H:%M}–{end:%H:%M} — это выходит за ваш график.",
+            },
+        )
 
 
 async def own_booking(session: AsyncSession, master: Master, booking_id: str) -> tuple[Booking, Service]:
@@ -352,6 +377,7 @@ async def create_booking(data: MasterBookingIn, master: MasterDep, session: Sess
     end = start + dt.timedelta(minutes=service.duration_minutes)
     if await has_conflict(session, master.id, start, end):
         raise HTTPException(409, "На это время уже есть запись")
+    await check_schedule(session, master, service, start, end, data.outside_schedule)
 
     phone = normalize_phone(data.client_phone)  # "" — номер не указан
     if phone and not is_valid_phone(phone):
@@ -403,6 +429,7 @@ async def reschedule_booking(booking_id: str, data: RescheduleIn, master: Master
     end = start + dt.timedelta(minutes=service.duration_minutes)
     if await has_conflict(session, master.id, start, end, exclude_id=booking.id):
         raise HTTPException(409, "На это время уже есть запись")
+    await check_schedule(session, master, service, start, end, data.outside_schedule)
 
     previous = booking.start_at
     booking.start_at, booking.end_at = start, end

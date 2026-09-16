@@ -118,6 +118,7 @@ class MasterBookingIn(BaseModel):
     client_name: str = Field(min_length=1, max_length=120)
     client_phone: str = Field(default="", max_length=32)
     start_at: dt.datetime
+    outside_schedule: bool = False  # мастер подтвердил запись вне рабочего графика
 
 
 class PublicBookingIn(BookingIn):
@@ -131,6 +132,7 @@ class PublicBookingOut(BaseModel):
 
 class RescheduleIn(BaseModel):
     start_at: dt.datetime
+    outside_schedule: bool = False
 
 
 class BookingOut(BaseModel):

@@ -18,8 +18,12 @@ export async function api<T = unknown>(path: string, { clientToken, ...init }: O
   }
   if (!res.ok) {
     const data = await res.json().catch(() => null);
-    const message = typeof data?.detail === "string" ? data.detail : "Что-то пошло не так. Попробуйте ещё раз.";
-    throw Object.assign(new Error(message), { status: res.status });
+    // detail — строка или {code, message}: по code фронт отличает «нужно подтверждение» от обычной ошибки
+    const detail = data?.detail;
+    const message =
+      typeof detail === "string" ? detail : typeof detail?.message === "string" ? detail.message : "Что-то пошло не так. Попробуйте ещё раз.";
+    const code = detail && typeof detail === "object" ? (detail.code as string | undefined) : undefined;
+    throw Object.assign(new Error(message), { status: res.status, code });
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }

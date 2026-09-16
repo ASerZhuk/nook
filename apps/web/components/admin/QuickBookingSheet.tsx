@@ -47,7 +47,8 @@ export function QuickBookingSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function create(values: Form) {
+  // черновик мастер уже просмотрел вместе с предупреждениями — второй раз не переспрашиваем
+  async function create(values: Form, reviewed = false) {
     const created = await api<Booking>("/master/bookings", {
       method: "POST",
       body: JSON.stringify({
@@ -55,6 +56,7 @@ export function QuickBookingSheet({
         client_name: values.client_name.trim(),
         client_phone: hasPhone(values.client_phone) ? values.client_phone : "",
         start_at: `${values.date}T${values.time}:00`,
+        outside_schedule: reviewed,
       }),
     });
     onCreated(created);
@@ -93,7 +95,7 @@ export function QuickBookingSheet({
     setBusy(true);
     setError("");
     try {
-      await create(form);
+      await create(form, true);
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);

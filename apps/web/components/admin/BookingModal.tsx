@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useDialogs } from "@/components/DialogProvider";
 import { api } from "@/lib/api";
 import { DAY_PARTS } from "@/lib/dayParts";
 import { formatDay, formatDuration, formatPrice, hhmm, localToday } from "@/lib/format";
@@ -31,6 +32,7 @@ export function BookingModal({ services, initialDate, initialTime, onClose, onCr
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const { confirm } = useDialogs();
   const preferredTime = useRef(initialTime);
 
   const service = services.find((s) => s.id === serviceId) ?? null;
@@ -76,16 +78,35 @@ export function BookingModal({ services, initialDate, initialTime, onClose, onCr
     if (!service || !slot || !canNext[2]) return;
     setSaving(true);
     setError("");
-    try {
-      const created = await api<Booking>("/master/bookings", {
-        method: "POST",
-        body: JSON.stringify({ service_id: service.id, client_name: name.trim(), client_phone: phone.trim(), start_at: slot.start_at }),
+    const body = (outside: boolean) =>
+      JSON.stringify({
+        service_id: service.id,
+        client_name: name.trim(),
+        client_phone: phone.trim(),
+        start_at: slot.start_at,
+        outside_schedule: outside,
       });
-      onCreated(created);
+    try {
+      onCreated(await api<Booking>("/master/bookings", { method: "POST", body: body(false) }));
     } catch (err) {
-      setError((err as Error).message);
+      const { status, code, message } = err as Error & { status?: number; code?: string };
+      // время вне графика — спрашиваем мастера, а не отказываем молча
+      if (code === "outside_schedule") {
+        const ok = await confirm({ title: "Записать вне графика?", message, confirmText: "Записать" });
+        if (ok) {
+          try {
+            onCreated(await api<Booking>("/master/bookings", { method: "POST", body: body(true) }));
+            return;
+          } catch (retry) {
+            setError((retry as Error).message);
+          }
+        }
+        setSaving(false);
+        return;
+      }
+      setError(message);
       setSaving(false);
-      if ((err as { status?: number }).status === 409) {
+      if (status === 409) {
         setStep(1);
         setReloadKey((k) => k + 1);
       }

@@ -7,9 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import TZ, local_now
 from app.models import Booking, BookingStatus, Client, ClientAccount, DateHours, DateSlot, Master, TimeOff, WorkingHours, WorkingSlot
 
-SLOT_STEP = dt.timedelta(minutes=30)
-
-
 def normalize_phone(phone: str) -> str:
     digits = re.sub(r"\D", "", phone)
     if len(digits) == 11 and digits[0] == "8":
@@ -90,7 +87,7 @@ async def free_slots(
 ) -> list[tuple[dt.datetime, dt.datetime]]:
     """Свободные слоты с учётом длительности услуги, перерывов и подтверждённых записей.
 
-    Режим дня: «окошки» (фиксированные времена начала) — если они заданы, иначе нарезка рабочих интервалов шагом SLOT_STEP.
+    Режим дня: «окошки» (фиксированные времена начала) — если они заданы, иначе рабочие интервалы подряд по длительности услуги.
     """
     hours, slot_times = await day_schedule(session, master_id, day)
     if not hours and not slot_times:
@@ -116,19 +113,27 @@ async def free_slots(
     duration = dt.timedelta(minutes=duration_minutes)
     if slot_times:
         candidates = [dt.datetime.combine(day, t) for t in slot_times]
-    else:
-        candidates = []
-        for h in hours:
-            cursor = dt.datetime.combine(day, h.start_time)
-            end = dt.datetime.combine(day, h.end_time)
-            while cursor + duration <= end:
-                candidates.append(cursor)
-                cursor += SLOT_STEP
-    return [
-        (start, start + duration)
-        for start in candidates
-        if start > now and not any(_overlaps(start, start + duration, b0, b1) for b0, b1 in busy)
-    ]
+        return [
+            (start, start + duration)
+            for start in candidates
+            if start > now and not any(_overlaps(start, start + duration, b0, b1) for b0, b1 in busy)
+        ]
+
+    # «с — до»: время идёт подряд по длительности услуги (услуга 2 ч → 10:00, 12:00, 14:00),
+    # после занятого времени отсчёт начинается заново — чтобы день не рассыпался на неудобные обрезки
+    busy.sort()
+    candidates = []
+    for h in hours:
+        cursor = dt.datetime.combine(day, h.start_time)
+        end = dt.datetime.combine(day, h.end_time)
+        while cursor + duration <= end:
+            taken = next((b1 for b0, b1 in busy if _overlaps(cursor, cursor + duration, b0, b1)), None)
+            if taken:
+                cursor = taken
+                continue
+            candidates.append(cursor)
+            cursor += duration
+    return [(start, start + duration) for start in candidates if start > now]
 
 
 async def has_conflict(
