@@ -5,16 +5,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { MonthCalendar } from "@/components/admin/MonthCalendar";
 import { CLIENT_TOKEN_KEY } from "@/lib/api";
+import { DAY_PARTS } from "@/lib/dayParts";
 import { addDays, formatDay, formatDuration, formatPrice, hhmm } from "@/lib/format";
 import type { Service, Slot } from "@/lib/types";
 
 const STEPS = ["Услуга", "Время", "Контакты"];
 const TITLES = ["Выберите услугу", "Когда вам удобно?", "Ваши контакты"];
-const DAY_PARTS = [
-  ["Утро", 0, 12],
-  ["День", 12, 17],
-  ["Вечер", 17, 24],
-] as const;
 const HORIZON_DAYS = 60;
 
 type Props = { slug: string; services: Service[]; today: string; initialServiceId: string | null };

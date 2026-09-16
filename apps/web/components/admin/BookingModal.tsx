@@ -3,16 +3,12 @@
 import { X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
+import { DAY_PARTS } from "@/lib/dayParts";
 import { formatDay, formatDuration, formatPrice, hhmm, localToday } from "@/lib/format";
 import type { AdminService, Booking, Slot } from "@/lib/types";
 import { MonthCalendar } from "./MonthCalendar";
 
 const STEPS = ["Услуга", "Дата и время", "Клиент"];
-const DAY_PARTS = [
-  ["Утро", 0, 12],
-  ["День", 12, 17],
-  ["Вечер", 17, 24],
-] as const;
 
 type Props = {
   services: AdminService[];

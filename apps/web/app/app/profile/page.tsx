@@ -10,7 +10,7 @@ import { useMaster } from "@/components/admin/MasterShell";
 import { PushSetup } from "@/components/admin/PushSetup";
 import { ErrorText, Field, PageHeader, PasswordInput } from "@/components/admin/ui";
 import { api, useLoad } from "@/lib/api";
-import { plural } from "@/lib/format";
+import { maskPhone, plural } from "@/lib/format";
 import type { AdminService, Schedule } from "@/lib/types";
 
 const WEEK_SHORT = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
@@ -55,7 +55,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Профиль" subtitle={me.phone} />
+      <PageHeader title="Профиль" subtitle={maskPhone(me.phone)} />
       <AvatarSection name={me.name} url={me.avatar_url} onChanged={reload} />
       <div className="mt-5">
         <LinkCard slug={me.slug} />

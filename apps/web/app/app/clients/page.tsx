@@ -4,7 +4,7 @@ import { Phone } from "lucide-react";
 import { useState } from "react";
 import { Empty, ErrorText, Loading, PageHeader } from "@/components/admin/ui";
 import { api, useLoad } from "@/lib/api";
-import { plural } from "@/lib/format";
+import { maskPhone, plural } from "@/lib/format";
 import type { Client } from "@/lib/types";
 
 export default function ClientsPage() {
@@ -58,7 +58,7 @@ export default function ClientsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{c.name}</p>
                   <p className="truncate text-sm text-muted">
-                    {c.phone} · {c.visits} {plural(c.visits, ["визит", "визита", "визитов"])}
+                    {maskPhone(c.phone)} · {c.visits} {plural(c.visits, ["визит", "визита", "визитов"])}
                   </p>
                 </div>
                 <a href={`tel:${c.phone}`} className="icon-btn h-11 w-11 shrink-0" aria-label={`Позвонить: ${c.name}`}>

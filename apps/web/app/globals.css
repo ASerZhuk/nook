@@ -44,7 +44,7 @@
     @apply inline-flex h-12 items-center justify-center gap-2 rounded-sm border border-ink bg-white px-6 text-base font-medium text-ink transition-colors hover:bg-surface-soft disabled:cursor-not-allowed disabled:border-border-strong disabled:text-muted-soft;
   }
   .btn-ghost {
-    @apply inline-flex h-10 items-center justify-center rounded-sm px-3 text-sm font-medium underline-offset-4 hover:underline;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-sm px-3 text-sm font-medium underline-offset-4 hover:underline;
   }
   .btn-pill {
     @apply inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-white transition-colors hover:bg-primary-active;

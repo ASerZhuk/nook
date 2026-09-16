@@ -13,7 +13,7 @@ import { NEW_BOOKING_EVENT } from "@/components/admin/TabBar";
 import { Empty, ErrorText, Loading, Sheet } from "@/components/admin/ui";
 import { api, useLoad } from "@/lib/api";
 import { dayPlan } from "@/lib/schedule";
-import { addDays, addMonths, formatDay, formatPrice, hhmm, localToday, parseDay, plural } from "@/lib/format";
+import { addDays, addMonths, formatDay, formatPrice, hhmm, localToday, maskPhone, parseDay, plural } from "@/lib/format";
 import type { AdminService, Booking, Schedule, Slot } from "@/lib/types";
 
 const WEEK = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -378,8 +378,9 @@ function DayNotebook({
               <span className="w-[3px] shrink-0 rounded-full bg-primary" aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{e.booking.client_name}</span>
-                <span className="block truncate text-sm text-muted">{e.booking.service_name} · {formatPrice(e.booking.price)}</span>
+                <span className="block truncate text-sm text-muted">{e.booking.service_name}</span>
               </span>
+              <span className="shrink-0 self-center text-sm font-medium">{formatPrice(e.booking.price)}</span>
             </button>
           </li>
         ) : e.kind === "window" ? (
@@ -430,7 +431,7 @@ function BookingSheet({
       <dl className="divide-y divide-hairline-soft text-sm">
         {[
           ["Клиент", b.client_name],
-          ["Телефон", b.client_phone || "не указан"],
+          ["Телефон", b.client_phone ? maskPhone(b.client_phone) : "не указан"],
           ["Услуга", b.service_name],
           ["Стоимость", formatPrice(b.price)],
         ].map(([label, value]) => (

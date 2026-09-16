@@ -2,7 +2,7 @@
 
 import { MessageSquare, Share2 } from "lucide-react";
 import { useState } from "react";
-import { formatDay, hhmm } from "@/lib/format";
+import { formatDay, hhmm, maskPhone } from "@/lib/format";
 import type { Booking } from "@/lib/types";
 import { Sheet } from "./ui";
 
@@ -53,7 +53,7 @@ export function NotifyClientSheet({
   }
 
   return (
-    <Sheet title={TITLES[kind]} subtitle={`${booking.client_name} · ${booking.client_phone}`} onClose={onClose}>
+    <Sheet title={TITLES[kind]} subtitle={`${booking.client_name} · ${maskPhone(booking.client_phone)}`} onClose={onClose}>
       <p className="rounded-sm bg-surface-soft p-3 text-sm leading-relaxed text-body [overflow-wrap:anywhere]">{text}</p>
       <p className="mt-2 text-xs text-muted">SMS уйдёт с вашего номера — клиенту не нужен мессенджер. Или выберите любой мессенджер через «Поделиться».</p>
       <div className="mt-5 grid grid-cols-2 gap-3">

@@ -25,7 +25,11 @@ const hasPhone = (value: string) => value.replace(/\D/g, "").length > 1;
 const isReady = (f: Form) =>
   Boolean(f.client_name.trim() && (!hasPhone(f.client_phone) || f.client_phone.replace(/\D/g, "").length === 11) && f.service_id && f.date && f.time);
 
-const EXAMPLES =["Анна шилак 16.09 в 13:30 89531234567", "Марина педикюр завтра в 15:00", "снятие в пятницу 18:00 Ольга +7 916 111-22-33"];
+const EXAMPLES = [
+  "Анна шилак 16.09 в 13:30 89531234567",
+  "Марина педикюр завтра на утро",
+  "снятие в пятницу 18:00 Ольга +7 916 111-22-33",
+];
 
 /** Быстрая запись одной строкой: ИИ разбирает текст → мастер проверяет черновик → «Записать» */
 export function QuickBookingSheet({
