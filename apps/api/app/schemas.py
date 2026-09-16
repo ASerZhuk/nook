@@ -283,6 +283,7 @@ class QuickBookingDraft(BaseModel):
     date: dt.date | None
     time: str | None  # HH:MM
     warnings: list[str]
+    notes: list[str] = []  # пояснения, а не ошибки: например, время подобрано по «на утро»
     known_client: bool  # телефон найден в клиентах мастера
 
 

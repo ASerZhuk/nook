@@ -1,6 +1,6 @@
 "use client";
 
-import { TriangleAlert, UserCheck } from "lucide-react";
+import { Info, TriangleAlert, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { formatDuration, maskPhone } from "@/lib/format";
@@ -14,6 +14,7 @@ type Draft = {
   date: string | null;
   time: string | null;
   warnings: string[];
+  notes: string[];
   known_client: boolean;
 };
 
@@ -68,7 +69,8 @@ export function QuickBookingSheet({
         date: d.date ?? "",
         time: d.time ?? "",
       };
-      if (!d.warnings.length && isReady(parsed)) {
+      // с пояснением (например, время подобрали сами) показываем черновик — мастер подтверждает
+      if (!d.warnings.length && !d.notes?.length && isReady(parsed)) {
         try {
           await create(parsed);
           return;
@@ -124,12 +126,18 @@ export function QuickBookingSheet({
       ) : (
         <>
           <p className="rounded-sm bg-surface-soft p-3 text-sm text-muted [overflow-wrap:anywhere]">«{text}»</p>
-          {draft.warnings.length > 0 && (
+          {(draft.warnings.length > 0 || draft.notes?.length > 0) && (
             <ul className="mt-3 space-y-1.5">
               {draft.warnings.map((warning) => (
                 <li key={warning} className="flex items-start gap-2 text-sm text-error">
                   <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                   {warning}
+                </li>
+              ))}
+              {draft.notes?.map((note) => (
+                <li key={note} className="flex items-start gap-2 text-sm text-muted">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  {note}
                 </li>
               ))}
             </ul>

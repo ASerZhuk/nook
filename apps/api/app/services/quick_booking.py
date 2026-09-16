@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models import Client, Master, Service
 from app.schemas import QuickBookingDraft
-from app.services.booking import has_conflict, is_valid_phone, normalize_phone
+from app.services.booking import free_slots, has_conflict, is_valid_phone, normalize_phone
 
 log = logging.getLogger(__name__)
 
@@ -20,15 +20,23 @@ WEEKDAYS = ["понедельник", "вторник", "среда", "четв�
 
 SYSTEM_PROMPT = """Ты помогаешь частному мастеру записывать клиентов. Мастер пишет запись одной строкой, как в блокноте: в любом порядке, с сокращениями, сленгом и опечатками.
 Верни ТОЛЬКО JSON-объект:
-{"client_name": string|null, "client_phone": string|null, "service_id": string|null, "date": "YYYY-MM-DD"|null, "time": "HH:MM"|null}
+{"client_name": string|null, "client_phone": string|null, "service_id": string|null, "date": "YYYY-MM-DD"|null, "time": "HH:MM"|null, "time_of_day": "morning"|"afternoon"|"evening"|null}
 
 Правила:
 - service_id — id самой подходящей по смыслу услуги из списка мастера. Учитывай сленг: «шилак», «шеллак», «гель», «гелька» — покрытие гель-лак; «педик» — педикюр; «снятие» — снятие покрытия. Если ни одна не подходит — null.
 - date: понимай «сегодня», «завтра», «послезавтра», дни недели (ближайший будущий), форматы 16.09, 16/09, 16-09, «16 сентября». Год текущий; если такая дата в этом году уже прошла — следующий год.
-- time: 24-часовой формат HH:MM. «13.30», «13-30», «в 13» → 13:30 / 13:00. Время без уточнения от 1 до 7 («в 3», «полчетвёртого») считай дневным (15:00, 15:30).
+- time: 24-часовой формат HH:MM, только если в тексте есть конкретный час. «13.30», «13-30», «в 13» → 13:30 / 13:00. Время без уточнения от 1 до 7 («в 3», «полчетвёртого») считай дневным (15:00, 15:30).
+- time_of_day — когда час не назван, а есть только часть дня: «утро», «с утра», «первая половина дня», «до обеда» → morning; «день», «после обеда», «вторая половина дня» → afternoon; «вечер», «поздно» → evening. Мастер подберёт точное время сам. Если назван конкретный час — time_of_day = null.
 - client_phone: цифры номера ровно как в тексте (с + если есть), ничего не добавляй и не исправляй.
 - client_name: имя клиента в именительном падеже («Анну» → «Анна»), с фамилией, если она есть.
 - Ничего не выдумывай: если данных нет в тексте — null."""
+
+# части дня для «на утро», «после обеда» — границы и подпись для мастера
+TIME_OF_DAY = {
+    "morning": (dt.time(6), dt.time(12), "утром"),
+    "afternoon": (dt.time(12), dt.time(17), "днём"),
+    "evening": (dt.time(17), dt.time(23, 59), "вечером"),
+}
 
 
 class QuickParseError(RuntimeError):
@@ -119,6 +127,22 @@ async def build_draft(
 
     date, time = _date(raw.get("date")), _time(raw.get("time"))
     warnings: list[str] = []
+    notes: list[str] = []
+
+    # «на утро», «первая половина дня» — точного часа нет, подбираем ближайшее свободное окно
+    period = TIME_OF_DAY.get(str(raw.get("time_of_day") or "").strip().lower())
+    no_free_time = False
+    if period and not time and date and service:
+        since, until, label = period
+        slots = await free_slots(session, master.id, service.duration_minutes, date)
+        slot = next((start for start, _ in slots if since <= start.time() < until and start > now), None)
+        if slot:
+            time = f"{slot:%H:%M}"
+            notes.append(f"Взяли ближайшее свободное время {label}")
+        else:
+            no_free_time = True
+            warnings.append(f"Свободного времени {label} нет — выберите другое")
+
     if not service:
         warnings.append("Не удалось определить услугу — выберите её")
     if not name:
@@ -127,7 +151,8 @@ async def build_draft(
     if phone and (len(raw_digits) == 10 and raw_digits.startswith("8") or not is_valid_phone(phone)):
         warnings.append("Проверьте номер — похоже, пропущена цифра")
     if not date or not time:
-        warnings.append("Укажите дату и время")
+        if not no_free_time:  # про занятую часть дня уже сказали выше
+            warnings.append("Укажите дату и время")
     elif service:
         start = dt.datetime.combine(date, dt.time.fromisoformat(time))
         if start <= now:
@@ -142,5 +167,6 @@ async def build_draft(
         date=date,
         time=time,
         warnings=warnings,
+        notes=notes,
         known_client=known_client,
     )
