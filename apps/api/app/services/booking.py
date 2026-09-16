@@ -33,13 +33,8 @@ def _overlaps(a0: dt.datetime, a1: dt.datetime, b0: dt.datetime, b1: dt.datetime
     return a0 < b1 and b0 < a1
 
 
-async def free_slots(
-    session: AsyncSession, master_id: str, duration_minutes: int, day: dt.date, exclude_id: str | None = None
-) -> list[tuple[dt.datetime, dt.datetime]]:
-    """Свободные слоты с учётом длительности услуги, перерывов и подтверждённых записей.
-
-    Режим дня: «окошки» (фиксированные времена начала) — если они заданы, иначе нарезка рабочих интервалов шагом SLOT_STEP.
-    """
+async def day_schedule(session: AsyncSession, master_id: str, day: dt.date) -> tuple[list, list[dt.time]]:
+    """Рабочее время на дату по типу графика: интервалы «с — до» и времена окошек."""
     master = await session.get(Master, master_id)
     if master and master.schedule_type == "dates":  # график по дням — время задано на конкретную дату
         hours = (
@@ -67,6 +62,37 @@ async def free_slots(
                 .order_by(WorkingSlot.start_time)
             )
         ).all()
+    return list(hours), list(slot_times)
+
+
+async def within_schedule(session: AsyncSession, master_id: str, start: dt.datetime, end: dt.datetime) -> bool:
+    """Помещается ли запись целиком в рабочее время дня (с учётом длительности услуги)."""
+    day = start.date()
+    hours, slot_times = await day_schedule(session, master_id, day)
+    offs = (await session.scalars(select(TimeOff).where(TimeOff.master_id == master_id, TimeOff.date == day))).all()
+    if any(o.start_time is None for o in offs):
+        return False  # выходной
+    if any(
+        _overlaps(start, end, dt.datetime.combine(day, o.start_time), dt.datetime.combine(day, o.end_time or dt.time.max))
+        for o in offs
+        if o.start_time
+    ):
+        return False  # перерыв
+    if slot_times:  # режим «окошки»: начало должно совпасть с окошком
+        return start.time() in slot_times
+    return any(
+        dt.datetime.combine(day, h.start_time) <= start and end <= dt.datetime.combine(day, h.end_time) for h in hours
+    )
+
+
+async def free_slots(
+    session: AsyncSession, master_id: str, duration_minutes: int, day: dt.date, exclude_id: str | None = None
+) -> list[tuple[dt.datetime, dt.datetime]]:
+    """Свободные слоты с учётом длительности услуги, перерывов и подтверждённых записей.
+
+    Режим дня: «окошки» (фиксированные времена начала) — если они заданы, иначе нарезка рабочих интервалов шагом SLOT_STEP.
+    """
+    hours, slot_times = await day_schedule(session, master_id, day)
     if not hours and not slot_times:
         return []
 

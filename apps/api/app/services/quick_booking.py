@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models import Client, Master, Service
 from app.schemas import QuickBookingDraft
-from app.services.booking import free_slots, has_conflict, is_valid_phone, normalize_phone
+from app.services.booking import free_slots, has_conflict, is_valid_phone, normalize_phone, within_schedule
 
 log = logging.getLogger(__name__)
 
@@ -155,10 +155,14 @@ async def build_draft(
             warnings.append("Укажите дату и время")
     elif service:
         start = dt.datetime.combine(date, dt.time.fromisoformat(time))
+        end = start + dt.timedelta(minutes=service.duration_minutes)
         if start <= now:
             warnings.append("Это время уже прошло")
-        elif await has_conflict(session, master.id, start, start + dt.timedelta(minutes=service.duration_minutes)):
+        elif await has_conflict(session, master.id, start, end):
             warnings.append("На это время уже есть запись")
+        # график не заполнен — сверять не с чем
+        elif master.schedule_type and not await within_schedule(session, master.id, start, end):
+            warnings.append(f"Не вписывается в график: {service.name} займёт {time}–{end:%H:%M}")
 
     return QuickBookingDraft(
         client_name=name,
